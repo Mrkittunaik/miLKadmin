@@ -1,0 +1,5 @@
+.order-status-badge{font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.3px; padding:5px 10px; border-radius:5px;}
+.order-status-badge.pending{background:#FFF3CC; color:var(--yellow-deep);}
+.order-status-badge.accepted,.order-status-badge.out_for_delivery{background:#EAF3EA; color:var(--green-dim);}
+.order-status-badge.delivered{background:var(--green-light); color:var(--green-dim);}
+.order-status-badge.cancelled{background:#FBEAE7; color:var(--danger);}

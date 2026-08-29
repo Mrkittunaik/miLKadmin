@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Delivery Boys — Pakka Doodhwala Admin</title>
+<link rel="stylesheet" href="../css/admin-base.css">
+<link rel="stylesheet" href="../css/admin-components.css">
+<link rel="stylesheet" href="../css/mobile.css">
+<link rel="stylesheet" href="../css/delivery-boys.css">
+</head>
+<body data-page="delivery-boys">
+<script src="../js/config.js"></script>
+<script src="../js/admin-auth.js"></script>
+
+<div id="admin-app">
+  <div id="page-root">
+
+    <div class="tabs">
+      <div class="tab-item active" data-tab="pending">Pending <span id="pendingCountTab"></span></div>
+      <div class="tab-item" data-tab="approved">Approved</div>
+      <div class="tab-item" data-tab="blocked">Blocked</div>
+    </div>
+
+    <div class="tab-panel active" id="tab-pending">
+      <div class="applicant-grid" id="pendingGrid"></div>
+      <div id="pendingEmpty"></div>
+    </div>
+
+    <div class="tab-panel" id="tab-approved">
+      <div class="card">
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Status</th>
+                <th>Total Delivered</th>
+                <th>Rating</th>
+                <th>Active Orders</th>
+                <th>Max Concurrent</th>
+                <th>Block</th>
+              </tr>
+            </thead>
+            <tbody id="approvedBody"></tbody>
+          </table>
+        </div>
+        <div id="approvedEmpty"></div>
+      </div>
+    </div>
+
+    <div class="tab-panel" id="tab-blocked">
+      <div class="card">
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Phone</th>
+                <th>Blocked On</th>
+                <th>Unblock</th>
+              </tr>
+            </thead>
+            <tbody id="blockedBody"></tbody>
+          </table>
+        </div>
+        <div id="blockedEmpty"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script src="../js/admin-api.js"></script>
+<script src="../js/admin-ui-helpers.js"></script>
+<script src="../js/admin-layout.js"></script>
+<script src="../js/delivery-boys.js"></script>
+</body>
+</html>

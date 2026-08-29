@@ -1,0 +1,177 @@
+/* ============================================================
+   MOBILE.CSS — global responsive layer for the admin webapp.
+   Loaded on every page after admin-base.css / admin-components.css
+   and before the page-specific stylesheet, so page CSS can still
+   override where needed.
+============================================================ */
+
+/* ---------- TABLET / SMALL LAPTOP (<=980px) ---------- */
+@media (max-width: 980px){
+  .page-title{font-size:15.5px;}
+  .stat-grid{grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:10px;}
+  .field-row{flex-wrap:wrap;}
+  .field-row .field{flex:1 1 100%;}
+}
+
+/* ---------- MOBILE (<=640px) ---------- */
+@media (max-width: 640px){
+  html{ -webkit-text-size-adjust:100%; }
+  body{font-size:13.5px;}
+
+  /* ---- Topbar ---- */
+  .topbar{padding:0 12px; height:56px;}
+  .page-title{font-size:14.5px; max-width:46vw;}
+  .topbar-right{gap:8px;}
+  .admin-chip-name{display:none;}
+  .admin-chip{padding:4px;}
+  .icon-btn{width:34px; height:34px;}
+  .menu-toggle{width:34px; height:34px;}
+
+  /* ---- Sidebar drawer replaced by bottom nav on mobile ---- */
+  .sidebar, .sidebar-overlay, .menu-toggle{display:none !important;}
+
+  /* ---- Room for the bottom nav bar ---- */
+  .page-content{padding:12px 12px 88px;}
+
+  /* ---- Card header / filter bars stack ---- */
+  .card-header{flex-direction:column; align-items:stretch; padding:14px;}
+  .card-header h3{font-size:13.5px;}
+  .filter-bar{flex-direction:column; align-items:stretch;}
+  .filter-bar > *{width:100%;}
+  .search-box{max-width:none; min-width:0;}
+
+  /* ---- Buttons stack full-width in toolbars/forms ---- */
+  .card-header .btn,
+  .filter-bar .btn{width:100%;}
+  .modal-footer{flex-wrap:wrap;}
+  .modal-footer .btn{flex:1 1 auto;}
+
+  /* ---- Stat grid: single column on phones ---- */
+  .stat-grid{grid-template-columns:1fr; gap:10px; margin-bottom:16px;}
+  .stat-card{padding:14px;}
+  .stat-card .stat-value{font-size:21px;}
+
+  /* ---- Forms ---- */
+  .field-row{flex-direction:column; gap:0;}
+  .modal-body{padding:14px;}
+  .modal-header{padding:14px;}
+  .modal-footer{padding:12px 14px;}
+  .modal{max-height:92vh; border-radius:12px 12px 0 0; align-self:flex-end; width:100%; max-width:100%;}
+  .modal-backdrop{padding:0; align-items:flex-end;}
+  .modal-backdrop.show{align-items:flex-end;}
+
+  /* ---- Tables: horizontal scroll with visible affordance ---- */
+  .table-wrap{
+    overflow-x:auto; -webkit-overflow-scrolling:touch;
+    margin:0 -12px; padding:0 12px; width:calc(100% + 24px);
+  }
+  table.data-table{font-size:12.5px;}
+  table.data-table thead th{padding:10px 12px; font-size:9.5px;}
+  table.data-table tbody td{padding:10px 12px;}
+  .table-thumb{width:32px; height:32px;}
+  .td-actions{gap:4px;}
+
+  /* ---- Pagination ---- */
+  .pagination{flex-direction:column; align-items:stretch; text-align:center; padding:12px;}
+  .pagination-controls{justify-content:center; flex-wrap:wrap;}
+
+  /* ---- Tabs: horizontal scroll instead of wrap ---- */
+  .tabs{overflow-x:auto; -webkit-overflow-scrolling:touch; flex-wrap:nowrap; white-space:nowrap;}
+  .tab-item{flex-shrink:0; margin-right:16px;}
+
+  /* ---- Toast clears the bottom nav bar ---- */
+  .toast{
+    left:12px; right:12px; bottom:calc(78px + env(safe-area-inset-bottom));
+    transform:translateY(20px); max-width:none; width:calc(100% - 24px); z-index:45;
+  }
+  .toast.show{transform:translateY(0);}
+
+  /* ---- Stepper timeline stays legible ---- */
+  .step-body{padding-bottom:16px;}
+
+  /* ---- Upload thumbs shrink slightly ---- */
+  .upload-thumb, .upload-add{width:68px; height:68px;}
+}
+
+/* ============================================================
+   BOTTOM NAV BAR + MORE SHEET — mobile app style navigation.
+   Hidden by default (desktop); shown only at <=640px below.
+============================================================ */
+.bottom-nav{
+  display:none;
+  position:fixed; left:0; right:0; bottom:0; z-index:50;
+  background:#fff; border-top:1px solid var(--line);
+  padding:6px 4px calc(6px + env(safe-area-inset-bottom));
+  box-shadow:0 -4px 16px rgba(43,36,16,.08);
+}
+.bnav-item{
+  flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:3px; padding:6px 2px; border-radius:var(--radius); color:var(--muted);
+  cursor:pointer; user-select:none; -webkit-tap-highlight-color:transparent;
+  transition:color .15s, transform .12s;
+}
+.bnav-ic{position:relative; display:flex; width:22px; height:22px;}
+.bnav-ic svg{width:22px; height:22px; transition:transform .18s cubic-bezier(.34,1.56,.64,1);}
+.bnav-label{font-size:10px; font-weight:700; letter-spacing:.1px;}
+.bnav-item.active{color:var(--green-dim);}
+.bnav-item.active .bnav-ic svg{transform:translateY(-1px) scale(1.08);}
+.bnav-item.active::before{
+  content:''; position:absolute; top:0; width:22px; height:3px; border-radius:0 0 4px 4px;
+  background:var(--yellow); transform:translateY(-6px);
+}
+.bnav-item:active, .bnav-item.tapped{transform:scale(.88); color:var(--green-dim);}
+.bnav-item .nav-badge{
+  position:absolute; top:-4px; right:-8px; background:var(--danger); color:#fff; font-size:8.5px; font-weight:800;
+  min-width:15px; height:15px; border-radius:50%; display:flex; align-items:center; justify-content:center; padding:0 3px;
+}
+.bnav-item .nav-badge.hidden{display:none;}
+
+/* ---- More sheet ---- */
+.more-sheet-backdrop{
+  display:none; position:fixed; inset:0; background:rgba(43,36,16,.45); z-index:60;
+  opacity:0; transition:opacity .2s ease;
+}
+.more-sheet-backdrop.show{display:block; opacity:1;}
+.more-sheet{
+  position:fixed; left:0; right:0; bottom:0; z-index:65; background:var(--card);
+  border-radius:16px 16px 0 0; box-shadow:0 -10px 40px rgba(43,36,16,.25);
+  padding:8px 10px calc(14px + env(safe-area-inset-bottom));
+  transform:translateY(105%); transition:transform .28s cubic-bezier(.22,.9,.3,1);
+  max-height:70vh; overflow-y:auto;
+}
+.more-sheet.show{transform:translateY(0);}
+.more-sheet-handle{width:36px; height:4px; border-radius:3px; background:var(--line); margin:6px auto 10px;}
+.more-sheet-items{display:flex; flex-direction:column; gap:2px;}
+.more-sheet-item{
+  display:flex; align-items:center; gap:14px; padding:13px 12px; border-radius:var(--radius);
+  font-size:14px; font-weight:700; color:var(--ink); cursor:pointer; position:relative;
+  transition:background .15s, transform .1s; -webkit-tap-highlight-color:transparent;
+}
+.more-sheet-item svg{width:19px; height:19px; flex-shrink:0; color:var(--muted);}
+.more-sheet-item:active, .more-sheet-item.tapped{background:var(--card-hi); transform:scale(.98);}
+.more-sheet-item.active{color:var(--green-dim);}
+.more-sheet-item.active svg{color:var(--green-dim);}
+.more-sheet-item .nav-badge{
+  margin-left:auto; background:var(--danger); color:#fff; font-size:9.5px; font-weight:800;
+  min-width:17px; height:17px; border-radius:50%; display:flex; align-items:center; justify-content:center; padding:0 4px;
+}
+.more-sheet-item .nav-badge.hidden{display:none;}
+.more-sheet-logout{color:var(--danger); border-top:1px solid var(--line); margin-top:6px; padding-top:15px;}
+.more-sheet-logout svg{color:var(--danger);}
+.more-sheet-logout:active, .more-sheet-logout.tapped{background:#FBEAE7;}
+
+@media (max-width: 640px){
+  .bottom-nav{display:flex;}
+}
+
+@media (max-width: 460px){
+  .login-card{padding:28px 20px 24px;}
+}
+
+/* ---------- EXTRA-SMALL PHONES (<=380px) ---------- */
+@media (max-width: 380px){
+  .page-content{padding:10px;}
+  .stat-card .stat-value{font-size:19px;}
+  table.data-table{font-size:11.5px;}
+  .btn{padding:9px 14px; font-size:12.5px;}
+}

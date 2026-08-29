@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Plans — Pakka Doodhwala Admin</title>
+<link rel="stylesheet" href="../css/admin-base.css">
+<link rel="stylesheet" href="../css/admin-components.css">
+<link rel="stylesheet" href="../css/mobile.css">
+<link rel="stylesheet" href="../css/plans.css">
+</head>
+<body data-page="plans">
+<script src="../js/config.js"></script>
+<script src="../js/admin-auth.js"></script>
+
+<div id="admin-app">
+  <div id="page-root">
+
+    <div class="filter-bar">
+      <div class="search-box">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+        <input type="text" id="searchInput" placeholder="Search plans...">
+      </div>
+      <button class="btn btn-primary" id="addPlanBtn" style="margin-left:auto;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 5v14M5 12h14"/></svg>
+        Add Plan
+      </button>
+    </div>
+
+    <div class="plans-grid" id="plansGrid"></div>
+    <div id="plansEmpty"></div>
+
+  </div>
+</div>
+
+<!-- Add/Edit Plan Modal -->
+<div class="modal-backdrop" id="planModal">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h3 id="planModalTitle">Add Plan</h3>
+      <button class="modal-close" onclick="closeModal('planModal')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <form id="planForm">
+        <input type="hidden" id="planId">
+        <div class="field">
+          <label>Plan Image</label>
+          <div class="upload-grid" id="planImageGrid">
+            <label class="upload-add">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+              Add
+              <input type="file" id="planImageInput" accept="image/*" style="display:none;">
+            </label>
+          </div>
+        </div>
+        <div class="field">
+          <label for="plName">Name</label>
+          <input type="text" id="plName" class="input" placeholder="e.g. Daily Milk Subscription" required>
+        </div>
+        <div class="field">
+          <label for="plDescription">Description</label>
+          <textarea id="plDescription" class="input" placeholder="Short description shown to customers"></textarea>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label for="plPrice">Price (₹)</label>
+            <input type="number" id="plPrice" class="input" min="0" step="0.01" required>
+          </div>
+          <div class="field">
+            <label for="plDuration">Duration</label>
+            <select id="plDuration" class="select">
+              <option value="daily">Daily</option>
+              <option value="weekly">Weekly</option>
+              <option value="monthly">Monthly</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="plDiscount">Discount (%)</label>
+            <input type="number" id="plDiscount" class="input" min="0" max="100">
+          </div>
+        </div>
+        <div class="field">
+          <label>Included Products</label>
+          <div class="checklist" id="planProductChecklist"></div>
+        </div>
+        <div class="field flex-between mb-0">
+          <label class="mb-0" style="margin:0;">Active</label>
+          <label class="toggle">
+            <input type="checkbox" id="plActive" checked>
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('planModal')">Cancel</button>
+      <button class="btn btn-primary" id="savePlanBtn">Save Plan</button>
+    </div>
+  </div>
+</div>
+
+<script src="../js/admin-api.js"></script>
+<script src="../js/admin-ui-helpers.js"></script>
+<script src="../js/admin-layout.js"></script>
+<script src="../js/plans.js"></script>
+</body>
+</html>

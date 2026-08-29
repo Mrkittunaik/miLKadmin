@@ -1,0 +1,9 @@
+.reports-toolbar{display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:20px;}
+.chart-card{margin-bottom:18px;}
+.chart-wrap{padding:18px;}
+.leaderboard-row{display:flex; align-items:center; gap:12px; padding:11px 0; border-bottom:1px solid var(--line);}
+.leaderboard-row:last-child{border-bottom:none;}
+.leaderboard-rank{width:26px; height:26px; border-radius:50%; background:var(--card-hi); color:var(--muted); font-size:11px; font-weight:800; display:flex; align-items:center; justify-content:center; flex-shrink:0;}
+.leaderboard-row:nth-child(1) .leaderboard-rank{background:var(--yellow); color:#231C08;}
+.leaderboard-name{font-size:13px; font-weight:700; flex:1;}
+.leaderboard-value{font-size:13px; font-weight:800; color:var(--green-dim);}

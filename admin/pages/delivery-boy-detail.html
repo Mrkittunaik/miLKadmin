@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Delivery Boy Detail — Pakka Doodhwala Admin</title>
+<link rel="stylesheet" href="../css/admin-base.css">
+<link rel="stylesheet" href="../css/admin-components.css">
+<link rel="stylesheet" href="../css/mobile.css">
+<link rel="stylesheet" href="../css/delivery-boy-detail.css">
+</head>
+<body data-page="delivery-boys">
+<script src="../js/config.js"></script>
+<script src="../js/admin-auth.js"></script>
+
+<div id="admin-app">
+  <div id="page-root">
+
+    <div id="dbdSkeleton">
+      <div class="skeleton skeleton-card" style="margin-bottom:14px;"></div>
+      <div class="skeleton skeleton-card"></div>
+    </div>
+
+    <div id="dbdContent" style="display:none;">
+
+      <div class="card card-pad" style="margin-bottom:18px;">
+        <div class="flex-between" style="flex-wrap:wrap; gap:14px;">
+          <div class="dbd-header">
+            <img class="dbd-photo" id="dbdPhoto" src="../images/logo.png" alt="">
+            <div>
+              <div class="dbd-name" id="dbdName">—</div>
+              <div class="dbd-phone" id="dbdPhone">—</div>
+              <div class="dbd-join" id="dbdJoin">—</div>
+            </div>
+          </div>
+          <div style="display:flex; align-items:center; gap:10px;">
+            <span id="dbdStatusBadge"></span>
+            <button class="btn btn-danger" id="blockBtn">Block</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="dbd-stat-grid">
+        <div class="stat-card"><div class="stat-label">Total Delivered</div><div class="stat-value" id="dbdTotalDelivered">0</div></div>
+        <div class="stat-card"><div class="stat-label">Rating</div><div class="stat-value" id="dbdRating">—</div></div>
+        <div class="stat-card"><div class="stat-label">Active Orders</div><div class="stat-value" id="dbdActiveOrders">0</div></div>
+        <div class="stat-card">
+          <div class="stat-label">Max Concurrent Orders</div>
+          <div style="display:flex; align-items:center; gap:8px; margin-top:4px;">
+            <input type="number" min="1" class="input" id="maxOrdersInput" style="max-width:80px;">
+            <button class="btn btn-outline btn-sm" id="saveMaxOrdersBtn">Save</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><h3>Active Orders</h3></div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th>Order ID</th><th>Customer</th><th>Amount</th><th>Status</th></tr></thead>
+            <tbody id="activeOrdersBody"></tbody>
+          </table>
+        </div>
+        <div id="activeOrdersEmpty"></div>
+      </div>
+
+      <div class="card" style="margin-top:18px;">
+        <div class="card-header"><h3>Past Orders</h3></div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th>Order ID</th><th>Customer</th><th>Amount</th><th>Status</th><th>Date</th></tr></thead>
+            <tbody id="pastOrdersBody"></tbody>
+          </table>
+        </div>
+        <div id="pastOrdersEmpty"></div>
+      </div>
+
+    </div>
+
+  </div>
+</div>
+
+<script src="../js/admin-api.js"></script>
+<script src="../js/admin-ui-helpers.js"></script>
+<script src="../js/admin-layout.js"></script>
+<script src="../js/delivery-boy-detail.js"></script>
+</body>
+</html>

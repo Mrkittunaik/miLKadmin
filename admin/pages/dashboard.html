@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Dashboard — Pakka Doodhwala Admin</title>
+<link rel="stylesheet" href="../css/admin-base.css">
+<link rel="stylesheet" href="../css/admin-components.css">
+<link rel="stylesheet" href="../css/mobile.css">
+<link rel="stylesheet" href="../css/dashboard.css">
+</head>
+<body data-page="dashboard">
+<script src="../js/config.js"></script>
+<script src="../js/admin-auth.js"></script>
+
+<div id="admin-app">
+  <div id="page-root">
+
+    <div class="stat-grid" id="statGrid">
+      <!-- filled by dashboard.js, skeletons shown first -->
+    </div>
+
+    <div class="dash-grid-2">
+      <div class="card recent-orders-card">
+        <div class="card-header">
+          <h3>Recent Orders</h3>
+          <button class="btn btn-outline btn-sm" onclick="location.href='orders.html'">View all</button>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Order ID</th>
+                <th>Customer</th>
+                <th>Amount</th>
+                <th>Status</th>
+                <th>Date</th>
+              </tr>
+            </thead>
+            <tbody id="recentOrdersBody"></tbody>
+          </table>
+        </div>
+        <div id="recentOrdersEmpty"></div>
+      </div>
+
+      <div class="card card-pad">
+        <div class="flex-between" style="margin-bottom:14px;">
+          <h3 style="margin:0; font-size:14.5px; font-weight:800;">Low Stock Alerts</h3>
+        </div>
+        <div class="low-stock-list" id="lowStockList"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script src="../js/admin-api.js"></script>
+<script src="../js/admin-ui-helpers.js"></script>
+<script src="../js/admin-layout.js"></script>
+<script src="../js/admin-socket.js"></script>
+<script src="../js/dashboard.js"></script>
+</body>
+</html>

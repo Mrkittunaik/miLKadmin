@@ -1,0 +1,2 @@
+.prod-toggle-cell{display:flex; align-items:center;}
+.stock-low{color:var(--danger); font-weight:700;}
