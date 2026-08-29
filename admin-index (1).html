@@ -1,0 +1,1579 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<title>Pakka Doodhwala Admin</title>
+<style>
+  :root{
+    --bg:#FFFDF6;
+    --card:#FFFFFF;
+    --card-hi:#FFF8E4;
+    --line:#F0E4C4;
+    --yellow:#FDC202;
+    --yellow-deep:#E8A400;
+    --green:#4CAF6D;
+    --green-light:#EAF7ED;
+    --green-dim:#3C9257;
+    --ink:#2B2410;
+    --muted:#8A7F60;
+    --danger:#E0503C;
+    --danger-light:#FBE7E3;
+    --blue:#3B82C4;
+    --blue-light:#E7F1FA;
+    --radius:5px;
+    --radius-sm:5px;
+    --nav-h:76px;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:'Poppins','Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+    overscroll-behavior:none;
+    -webkit-font-smoothing:antialiased;
+  }
+  #app{
+    display:flex; flex-direction:column; height:100vh; height:100dvh;
+    max-width:480px; margin:0 auto; position:relative; overflow:hidden;
+    box-shadow:0 0 50px rgba(43,36,16,.08);
+    background:var(--bg);
+  }
+
+  /* ---------- TOP BAR ---------- */
+  .topbar{
+    flex-shrink:0; padding:16px 18px 14px;
+    background:linear-gradient(160deg,var(--yellow) 0%,#FFCE33 55%,var(--yellow) 100%);
+    border-radius:0 0 5px 5px;
+    box-shadow:0 6px 18px rgba(232,164,0,.18);
+    position:relative; overflow:hidden;
+  }
+  .topbar::after{
+    content:''; position:absolute; right:-40px; top:-50px; width:160px; height:160px;
+    border-radius:50%; background:rgba(255,255,255,.18);
+  }
+  .topbar-row{display:flex; align-items:center; justify-content:space-between; position:relative; z-index:1;}
+  .brand{display:flex; align-items:center; gap:10px;}
+  .brand-icon{
+    width:44px; height:44px; border-radius:5px;
+    display:flex; align-items:center; justify-content:center;
+    overflow:hidden; flex-shrink:0; background:#231C08;
+    font-weight:800; color:var(--yellow); font-size:16px;
+  }
+  .brand-text{display:flex; flex-direction:column; line-height:1.15;}
+  .brand-title{font-size:17px; font-weight:800; letter-spacing:-.2px; color:#1E1806;}
+  .brand-sub{font-size:11px; color:#5A4E1F; font-weight:600; display:flex; align-items:center; gap:5px; margin-top:2px;}
+  .brand-sub .dot{width:6px; height:6px; border-radius:50%; background:var(--green); box-shadow:0 0 6px #4caf6d88;}
+
+  .topbar-icons{display:flex; gap:10px;}
+  .icon-btn{
+    width:38px; height:38px; border-radius:5px; display:flex; align-items:center; justify-content:center;
+    background:rgba(255,255,255,.55); border:none; color:#3A3110; cursor:pointer; position:relative;
+  }
+  .icon-btn .badge{
+    position:absolute; top:-4px; right:-4px; background:var(--danger); color:#fff;
+    font-size:9.5px; font-weight:700; min-width:15px; height:15px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center; padding:0 3px;
+    border:2px solid var(--yellow);
+  }
+
+  .admin-search-row{
+    margin-top:12px; position:relative; z-index:1;
+    display:flex; align-items:center; gap:10px;
+    background:#FFFFFF; border-radius:5px; padding:11px 14px;
+    box-shadow:0 4px 14px rgba(0,0,0,.08);
+  }
+  .admin-search-row svg{flex-shrink:0; color:var(--muted);}
+  .admin-search-row input{
+    border:none; outline:none; flex:1; font-size:14px; font-family:inherit; color:var(--ink); background:transparent;
+  }
+  .admin-search-row input::placeholder{color:#B5A778;}
+
+  /* ---------- SCREEN TRANSITIONS ---------- */
+  .screen{
+    flex:1; overflow-y:auto; padding:18px 18px calc(var(--nav-h) + 20px); -webkit-overflow-scrolling:touch;
+    display:none;
+  }
+  .screen.active{display:block; animation:screenIn .28s ease;}
+  @keyframes screenIn{
+    from{opacity:0; transform:translateY(10px);}
+    to{opacity:1; transform:translateY(0);}
+  }
+
+  .section-head{display:flex; align-items:baseline; justify-content:space-between; margin:22px 0 12px;}
+  .section-head:first-child{margin-top:2px;}
+  .section-title{font-size:17px; font-weight:800; letter-spacing:-.2px;}
+  .section-title span{color:var(--green-dim);}
+  .section-link{font-size:12px; font-weight:700; color:var(--green-dim); display:flex; align-items:center; gap:3px; cursor:pointer;}
+
+  /* ---------- STAT CARDS (Dashboard) ---------- */
+  .stat-grid{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+  .stat-card{
+    background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+    padding:14px; position:relative; overflow:hidden; box-shadow:0 2px 10px rgba(43,36,16,.05);
+    cursor:pointer; transition:transform .15s;
+  }
+  .stat-card:active{transform:scale(.97);}
+  .stat-ic{width:34px; height:34px; border-radius:5px; display:flex; align-items:center; justify-content:center; margin-bottom:10px;}
+  .stat-ic.y{background:var(--card-hi); color:var(--yellow-deep);}
+  .stat-ic.g{background:var(--green-light); color:var(--green-dim);}
+  .stat-ic.b{background:var(--blue-light); color:var(--blue);}
+  .stat-ic.r{background:var(--danger-light); color:var(--danger);}
+  .stat-value{font-size:21px; font-weight:800; letter-spacing:-.3px;}
+  .stat-label{font-size:11px; color:var(--muted); font-weight:600; margin-top:2px;}
+  .stat-trend{font-size:10px; font-weight:700; margin-top:6px; display:inline-flex; align-items:center; gap:3px;}
+  .stat-trend.up{color:var(--green-dim);}
+  .stat-trend.down{color:var(--danger);}
+
+  /* ---------- QUICK ACTIONS ---------- */
+  .qa-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-top:16px;}
+  .qa-item{display:flex; flex-direction:column; align-items:center; gap:7px; cursor:pointer;}
+  .qa-ic{width:52px; height:52px; border-radius:5px; background:var(--card); border:1px solid var(--line);
+    display:flex; align-items:center; justify-content:center; color:var(--green-dim); box-shadow:0 2px 8px rgba(43,36,16,.05);
+    transition:transform .15s;}
+  .qa-item:active .qa-ic{transform:scale(.9);}
+  .qa-item span{font-size:9.5px; font-weight:700; text-align:center; color:var(--muted); line-height:1.2;}
+
+  /* ---------- GENERIC CARD LIST ---------- */
+  .list-card{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:13px; margin-bottom:10px; box-shadow:0 2px 10px rgba(43,36,16,.05); animation:cartItemIn .25s ease;}
+  @keyframes cartItemIn{ from{opacity:0; transform:translateX(-8px);} to{opacity:1; transform:translateX(0);} }
+
+  /* Delivery boy approval card */
+  .db-card{display:flex; align-items:center; gap:12px;}
+  .db-avatar{width:46px; height:46px; border-radius:50%; background:linear-gradient(150deg,var(--yellow),var(--yellow-deep)); display:flex; align-items:center; justify-content:center; font-weight:800; color:#231C08; flex-shrink:0; font-size:16px;}
+  .db-info{flex:1; min-width:0;}
+  .db-name{font-size:13.5px; font-weight:800;}
+  .db-meta{font-size:11px; color:var(--muted); margin-top:2px;}
+  .db-status{font-size:9px; font-weight:800; text-transform:uppercase; padding:3px 7px; border-radius:5px; display:inline-block; margin-top:5px;}
+  .db-status.pending{background:var(--card-hi); color:var(--yellow-deep);}
+  .db-status.approved{background:var(--green-light); color:var(--green-dim);}
+  .db-status.rejected{background:var(--danger-light); color:var(--danger);}
+  .db-status.suspended{background:#EFE7DA; color:var(--muted);}
+  .db-actions{display:flex; flex-direction:column; gap:6px; flex-shrink:0;}
+  .btn-tiny{padding:7px 12px; border-radius:5px; border:none; font-size:11px; font-weight:800; cursor:pointer; white-space:nowrap;}
+  .btn-tiny.approve{background:var(--green); color:#fff;}
+  .btn-tiny.reject{background:var(--danger-light); color:var(--danger);}
+  .btn-tiny.suspend{background:#EFE7DA; color:#5A4E1F;}
+  .btn-tiny.reactivate{background:var(--yellow); color:#231C08;}
+  .btn-tiny.ghost{background:transparent; border:1px solid var(--line); color:var(--muted);}
+
+  /* Order card */
+  .order-card{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:14px; margin-bottom:12px; box-shadow:0 2px 10px rgba(43,36,16,.05); cursor:pointer;}
+  .order-top{display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:8px;}
+  .order-id{font-size:13px; font-weight:800;}
+  .order-date{font-size:11px; color:var(--muted); margin-top:2px;}
+  .order-status{font-size:9.5px; font-weight:800; text-transform:uppercase; padding:4px 8px; border-radius:5px;}
+  .order-status.placed{background:var(--blue-light); color:var(--blue);}
+  .order-status.preparing{background:var(--card-hi); color:var(--yellow-deep);}
+  .order-status.out{background:#EFE3FB; color:#7A48C4;}
+  .order-status.delivered{background:var(--green-light); color:var(--green-dim);}
+  .order-status.cancelled{background:var(--danger-light); color:var(--danger);}
+  .order-items{font-size:12px; color:var(--muted); margin-bottom:10px; line-height:1.4;}
+  .order-bottom{display:flex; align-items:center; justify-content:space-between;}
+  .order-bottom b{font-size:14px; font-weight:800;}
+  .order-link{font-size:12px; font-weight:700; color:var(--green-dim); cursor:pointer;}
+  .order-assign{font-size:11px; color:var(--muted); margin-top:6px; display:flex; align-items:center; gap:5px;}
+
+  /* Filter chips */
+  .chip-row{display:flex; gap:8px; overflow-x:auto; scrollbar-width:none; margin-bottom:16px;}
+  .chip-row::-webkit-scrollbar{display:none;}
+  .chip{
+    flex:0 0 auto; padding:8px 16px; border-radius:5px; background:var(--card-hi);
+    font-size:12.5px; font-weight:700; color:var(--muted); cursor:pointer; border:1px solid var(--line);
+    transition:all .15s;
+  }
+  .chip.active{background:var(--yellow); color:#231C08; border-color:transparent;}
+
+  /* ---------- PRODUCTS GRID (admin) ---------- */
+  .prod-admin-grid{display:grid; grid-template-columns:1fr 1fr; gap:13px;}
+  .prod-admin-card{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden; box-shadow:0 2px 10px rgba(43,36,16,.05); transition:transform .15s;}
+  .prod-admin-card:active{transform:scale(.97);}
+  .prod-admin-thumb{height:100px; background:var(--card-hi); display:flex; align-items:center; justify-content:center; position:relative; overflow:hidden;}
+  .prod-admin-thumb img{width:100%; height:100%; object-fit:cover;}
+  .prod-admin-thumb .stock-badge{position:absolute; top:7px; left:7px; font-size:9px; font-weight:800; padding:3px 7px; border-radius:5px;}
+  .stock-badge.in{background:var(--green); color:#fff;}
+  .stock-badge.low{background:var(--yellow); color:#231C08;}
+  .stock-badge.out{background:var(--danger); color:#fff;}
+  .prod-admin-body{padding:10px 11px 11px;}
+  .prod-admin-name{font-size:12.5px; font-weight:700; line-height:1.3; margin-bottom:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .prod-admin-meta{font-size:10.5px; color:var(--muted); margin-bottom:8px;}
+  .prod-admin-bottom{display:flex; align-items:center; justify-content:space-between; gap:6px;}
+  .prod-admin-price{font-size:13px; font-weight:800;}
+  .prod-admin-edit{width:26px; height:26px; border-radius:5px; background:var(--card-hi); border:none; display:flex; align-items:center; justify-content:center; color:var(--ink); cursor:pointer; flex-shrink:0;}
+
+  .fab-add{
+    position:absolute; right:18px; bottom:calc(var(--nav-h) + 18px); width:54px; height:54px; border-radius:50%;
+    background:linear-gradient(150deg,var(--yellow),var(--yellow-deep)); display:flex; align-items:center; justify-content:center;
+    color:#231C08; box-shadow:0 8px 20px rgba(232,164,0,.4); border:none; cursor:pointer; z-index:15;
+    transition:transform .18s cubic-bezier(.34,1.56,.64,1);
+  }
+  .fab-add:active{transform:scale(.88) rotate(90deg);}
+
+  /* ---------- FORM / MODAL (add/edit product, user detail, etc) ---------- */
+  .sheet-backdrop{
+    position:absolute; inset:0; background:rgba(43,36,16,.45); z-index:60; display:none;
+    align-items:flex-end; justify-content:center;
+  }
+  .sheet-backdrop.show{display:flex; animation:fadeIn .2s ease;}
+  @keyframes fadeIn{from{opacity:0;} to{opacity:1;}}
+  .sheet{
+    background:var(--card); width:100%; max-width:480px; border-radius:16px 16px 0 0; padding:20px 20px 26px;
+    animation:slideUp .28s cubic-bezier(.22,.9,.3,1); max-height:88vh; overflow-y:auto;
+  }
+  @keyframes slideUp{from{transform:translateY(100%);} to{transform:translateY(0);}}
+  .sheet-handle{width:38px; height:4px; border-radius:3px; background:var(--line); margin:0 auto 14px;}
+  .sheet h3{margin:0 0 16px; font-size:16.5px; font-weight:800;}
+  .field{margin-bottom:14px;}
+  .field label{display:block; font-size:11.5px; font-weight:700; color:var(--muted); margin-bottom:6px;}
+  .field input, .field select, .field textarea{
+    width:100%; padding:11px 13px; border-radius:5px; border:1.5px solid var(--line); font-size:13.5px;
+    font-family:inherit; color:var(--ink); background:var(--card-hi); outline:none;
+  }
+  .field input:focus, .field select:focus, .field textarea:focus{border-color:var(--yellow-deep);}
+  .field textarea{resize:vertical; min-height:64px;}
+  .field-row{display:flex; gap:10px;}
+  .field-row .field{flex:1;}
+
+  .img-upload{
+    display:flex; align-items:center; gap:10px; overflow-x:auto; scrollbar-width:none; padding-bottom:2px;
+  }
+  .img-upload::-webkit-scrollbar{display:none;}
+  .img-slot{
+    flex:0 0 auto; width:74px; height:74px; border-radius:5px; border:1.5px dashed var(--line);
+    background:var(--card-hi); display:flex; align-items:center; justify-content:center; color:var(--muted);
+    cursor:pointer; position:relative; overflow:hidden;
+  }
+  .img-slot img{width:100%; height:100%; object-fit:cover;}
+  .img-slot .rm{position:absolute; top:2px; right:2px; width:18px; height:18px; border-radius:50%; background:rgba(43,36,16,.7); color:#fff; display:flex; align-items:center; justify-content:center; font-size:11px;}
+
+  .toggle-row{display:flex; align-items:center; justify-content:space-between; padding:12px 0; border-top:1px solid var(--line);}
+  .toggle-row:first-of-type{border-top:none;}
+  .toggle-row-label{font-size:13px; font-weight:700;}
+  .toggle-row-sub{font-size:11px; color:var(--muted); margin-top:2px;}
+  .switch{width:42px; height:24px; border-radius:20px; background:var(--line); position:relative; cursor:pointer; flex-shrink:0; transition:background .2s;}
+  .switch.on{background:var(--green);}
+  .switch::after{content:''; position:absolute; top:3px; left:3px; width:18px; height:18px; border-radius:50%; background:#fff; transition:transform .2s; box-shadow:0 1px 3px rgba(0,0,0,.2);}
+  .switch.on::after{transform:translateX(18px);}
+
+  .btn-primary{
+    width:100%; padding:14px; border-radius:5px; border:none; background:var(--green);
+    color:#fff; font-weight:800; font-size:14px; cursor:pointer; box-shadow:0 6px 16px rgba(76,175,109,.35);
+    transition:transform .12s; margin-top:8px;
+  }
+  .btn-primary:active{transform:scale(.97);}
+  .btn-secondary{
+    width:100%; padding:13px; border-radius:5px; border:1.5px solid var(--line); background:transparent;
+    color:var(--muted); font-weight:700; font-size:13px; cursor:pointer; margin-top:8px;
+  }
+  .btn-danger-outline{
+    width:100%; padding:13px; border-radius:5px; border:1.5px solid var(--danger); background:var(--danger-light);
+    color:var(--danger); font-weight:800; font-size:13px; cursor:pointer; margin-top:8px;
+  }
+
+  /* ---------- ORDER DETAIL / TIMELINE ---------- */
+  .timeline{margin:16px 0;}
+  .tl-step{display:flex; gap:12px; position:relative; padding-bottom:22px;}
+  .tl-step:last-child{padding-bottom:0;}
+  .tl-step::before{content:''; position:absolute; left:11px; top:26px; bottom:0; width:2px; background:var(--line);}
+  .tl-step:last-child::before{display:none;}
+  .tl-dot{width:24px; height:24px; border-radius:50%; background:var(--line); display:flex; align-items:center; justify-content:center; flex-shrink:0; z-index:1;}
+  .tl-step.done .tl-dot{background:var(--green); color:#fff;}
+  .tl-step.current .tl-dot{background:var(--yellow); color:#231C08;}
+  .tl-label{font-size:13px; font-weight:700;}
+  .tl-time{font-size:11px; color:var(--muted); margin-top:2px;}
+
+  /* ---------- USERS SCREEN ---------- */
+  .user-card{display:flex; align-items:center; gap:12px;}
+  .user-avatar{width:44px; height:44px; border-radius:50%; background:var(--green-light); color:var(--green-dim); display:flex; align-items:center; justify-content:center; font-weight:800; flex-shrink:0;}
+  .user-info{flex:1; min-width:0;}
+  .user-name{font-size:13px; font-weight:800;}
+  .user-meta{font-size:11px; color:var(--muted); margin-top:2px;}
+  .user-orders{font-size:11px; color:var(--green-dim); font-weight:700; margin-top:4px;}
+
+  /* ---------- ANALYTICS ---------- */
+  .bar-chart{display:flex; align-items:flex-end; gap:8px; height:120px; margin:14px 0 6px;}
+  .bar-col{flex:1; display:flex; flex-direction:column; align-items:center; gap:6px;}
+  .bar-fill{width:100%; border-radius:5px 5px 0 0; background:linear-gradient(180deg,var(--yellow),var(--yellow-deep)); transition:height .5s ease;}
+  .bar-label{font-size:9.5px; color:var(--muted); font-weight:700;}
+  .top-prod-row{display:flex; align-items:center; gap:10px; padding:10px 0; border-top:1px solid var(--line);}
+  .top-prod-row:first-child{border-top:none;}
+  .top-prod-rank{width:22px; height:22px; border-radius:5px; background:var(--card-hi); color:var(--yellow-deep); font-size:11px; font-weight:800; display:flex; align-items:center; justify-content:center; flex-shrink:0;}
+  .top-prod-info{flex:1;}
+  .top-prod-name{font-size:12.5px; font-weight:700;}
+  .top-prod-sub{font-size:10.5px; color:var(--muted); margin-top:1px;}
+  .top-prod-val{font-size:12.5px; font-weight:800; color:var(--green-dim);}
+
+  /* ---------- ACCOUNT / MORE MENU ---------- */
+  .account-header{display:flex; align-items:center; gap:14px; margin-bottom:20px;}
+  .account-avatar{width:56px; height:56px; border-radius:5px; background:linear-gradient(150deg,var(--yellow),var(--yellow-deep)); display:flex; align-items:center; justify-content:center; font-size:22px; font-weight:800; color:#231C08;}
+  .account-name{font-size:16px; font-weight:800;}
+  .account-phone{font-size:12px; color:var(--muted); margin-top:2px;}
+  .settings-group{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden; margin-bottom:16px;}
+  .settings-row{padding:15px 16px; border-top:1px solid var(--line); font-size:13.5px; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:12px; justify-content:space-between;}
+  .settings-row:first-child{border-top:none;}
+  .settings-row .left{display:flex; align-items:center; gap:12px;}
+  .settings-row .ic{width:32px; height:32px; border-radius:5px; background:var(--card-hi); display:flex; align-items:center; justify-content:center; color:var(--green-dim); flex-shrink:0;}
+  .settings-group-title{font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.4px; color:var(--muted); margin:18px 0 8px 4px;}
+  .settings-group-title:first-of-type{margin-top:2px;}
+
+  /* ---------- BOTTOM NAV ---------- */
+  .bottomnav{
+    position:absolute; left:0; right:0; bottom:0; height:var(--nav-h);
+    background:#fff; border-top:1px solid var(--line);
+    display:flex; align-items:center; justify-content:space-around;
+    padding-bottom:env(safe-area-inset-bottom); z-index:20;
+  }
+  .nav-item{display:flex; flex-direction:column; align-items:center; gap:4px; color:var(--muted); cursor:pointer; position:relative; transition:transform .15s;}
+  .nav-item:active{transform:scale(.92);}
+  .nav-item.active{color:var(--green-dim);}
+  .nav-item span{font-size:10px; font-weight:700;}
+  .nav-item .nav-badge{
+    position:absolute; top:-6px; right:-10px; background:var(--danger); color:#fff;
+    font-size:9px; font-weight:800; min-width:15px; height:15px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center; padding:0 3px;
+  }
+
+  /* Toast */
+  .toast{
+    position:absolute; left:50%; bottom:calc(var(--nav-h) + 14px); transform:translateX(-50%) translateY(20px);
+    background:#2B2410; color:#fff; padding:11px 18px; border-radius:5px; font-size:12.5px; font-weight:600;
+    box-shadow:0 8px 20px rgba(0,0,0,.25); z-index:70; opacity:0; pointer-events:none; transition:all .3s ease;
+    white-space:nowrap; max-width:90%; overflow:hidden; text-overflow:ellipsis;
+  }
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+
+  .empty-state{display:flex; flex-direction:column; align-items:center; text-align:center; padding:50px 20px; gap:10px; color:var(--muted);}
+  .empty-state-title{font-size:14.5px; font-weight:800; color:var(--ink);}
+  .empty-state-sub{font-size:12px; max-width:220px; line-height:1.4;}
+
+  .add-pop{ animation:addPop .3s ease; }
+  @keyframes addPop{
+    0%{transform:scale(1);}
+    40%{transform:scale(.85);}
+    100%{transform:scale(1);}
+  }
+  .card-pop-out{animation:popOut .25s ease forwards;}
+  @keyframes popOut{ to{opacity:0; transform:scale(.9) translateX(30px);} }
+
+  .back-btn{
+    width:34px; height:34px; border-radius:50%; background:var(--card-hi); border:1px solid var(--line);
+    display:flex; align-items:center; justify-content:center; color:var(--ink); cursor:pointer; flex-shrink:0;
+  }
+  .screen-header-row{display:flex; align-items:center; gap:10px; margin-bottom:4px;}
+
+  /* login screen */
+  .login-wrap{flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:32px;}
+  .login-logo{width:78px; height:78px; border-radius:16px; background:#231C08; display:flex; align-items:center; justify-content:center; color:var(--yellow); font-weight:800; font-size:28px; margin-bottom:18px; box-shadow:0 10px 24px rgba(35,28,8,.25);}
+  .login-title{font-size:19px; font-weight:800;}
+  .login-sub{font-size:12.5px; color:var(--muted); margin-top:4px; margin-bottom:26px; text-align:center;}
+  .login-wrap .field{width:100%;}
+  .login-wrap .btn-primary{width:100%;}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ============ LOGIN SCREEN ============ -->
+  <div class="screen active" id="screen-login" style="display:flex; flex-direction:column;">
+    <div class="login-wrap">
+      <div class="login-logo">PD</div>
+      <div class="login-title">Pakka Doodhwala</div>
+      <div class="login-sub">Admin Console &middot; Manage orders, delivery &amp; products</div>
+      <div class="field">
+        <label>Admin Email</label>
+        <input type="email" id="loginEmail" placeholder="admin@pakkadoodhwala.in" value="admin@pakkadoodhwala.in">
+      </div>
+      <div class="field">
+        <label>Password</label>
+        <input type="password" id="loginPass" placeholder="••••••••" value="admin@123">
+      </div>
+      <button class="btn-primary" id="loginBtn">Log In</button>
+      <div id="loginError" style="color:var(--danger); font-size:12px; font-weight:700; margin-top:10px; text-align:center; display:none;">Invalid email or password</div>
+      <div style="margin-top:18px; padding:12px 14px; background:var(--card-hi); border:1px dashed var(--line); border-radius:5px; font-size:11.5px; color:var(--muted); line-height:1.6; text-align:center;">
+        ⚠️ TEMPORARY DEMO LOGIN — for testing only<br>
+        Email: <b style="color:var(--ink);">admin@pakkadoodhwala.in</b><br>
+        Password: <b style="color:var(--ink);">admin@123</b><br>
+        Replace with real authentication before going live.
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ TOP BAR (shown on all main screens) ============ -->
+  <div class="topbar" id="topbar" style="display:none;">
+    <div class="topbar-row">
+      <div class="brand">
+        <div class="brand-icon">PD</div>
+        <div class="brand-text">
+          <div class="brand-title" id="topbarTitle">Dashboard</div>
+          <div class="brand-sub"><span class="dot"></span><span id="topbarSub">All systems live</span></div>
+        </div>
+      </div>
+      <div class="topbar-icons">
+        <button class="icon-btn" id="notifBtn">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+          <span class="badge" id="notifBadge">3</span>
+        </button>
+        <button class="icon-btn" id="refreshBtn">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3v6h-6"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="admin-search-row" id="searchRow" style="display:none;">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+      <input type="text" id="globalSearch" placeholder="Search...">
+    </div>
+  </div>
+
+  <!-- ============ SCREEN: DASHBOARD ============ -->
+  <div class="screen" id="screen-dashboard">
+    <div class="section-head" style="margin-top:2px;">
+      <div class="section-title">Overview <span>today</span></div>
+      <div class="section-link" id="dashRangeBtn">This week <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="m6 9 6 6 6-6"/></svg></div>
+    </div>
+
+    <div class="stat-grid">
+      <div class="stat-card" data-goto="orders">
+        <div class="stat-ic y"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z"/></svg></div>
+        <div class="stat-value" id="statOrders">128</div>
+        <div class="stat-label">Orders Today</div>
+        <div class="stat-trend up">▲ 12% vs yesterday</div>
+      </div>
+      <div class="stat-card" data-goto="users">
+        <div class="stat-ic b"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+        <div class="stat-value" id="statUsers">3,482</div>
+        <div class="stat-label">Total Users</div>
+        <div class="stat-trend up">▲ 8 new today</div>
+      </div>
+      <div class="stat-card" data-goto="delivery">
+        <div class="stat-ic g"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 3v5h-7z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg></div>
+        <div class="stat-value" id="statRiders">24</div>
+        <div class="stat-label">Active Riders</div>
+        <div class="stat-trend" style="color:var(--yellow-deep);">3 pending approval</div>
+      </div>
+      <div class="stat-card" data-goto="analytics">
+        <div class="stat-ic r"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 2v20M2 12h20"/></svg></div>
+        <div class="stat-value">₹48.2K</div>
+        <div class="stat-label">Revenue Today</div>
+        <div class="stat-trend up">▲ 5.4%</div>
+      </div>
+    </div>
+
+    <div class="section-head">
+      <div class="section-title">Quick Actions</div>
+    </div>
+    <div class="qa-grid">
+      <div class="qa-item" data-goto="products" data-action="add-product">
+        <div class="qa-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 5v14M5 12h14"/></svg></div>
+        <span>Add Product</span>
+      </div>
+      <div class="qa-item" data-goto="delivery" data-filter="pending">
+        <div class="qa-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m22 4-10 10-3-3"/></svg></div>
+        <span>Approve Riders</span>
+      </div>
+      <div class="qa-item" data-goto="orders" data-filter="placed">
+        <div class="qa-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></div>
+        <span>New Orders</span>
+      </div>
+      <div class="qa-item" data-goto="analytics">
+        <div class="qa-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg></div>
+        <span>Analytics</span>
+      </div>
+    </div>
+
+    <div class="section-head">
+      <div class="section-title">Pending Approvals</div>
+      <div class="section-link" data-goto="delivery">See all</div>
+    </div>
+    <div id="dashPendingList"></div>
+
+    <div class="section-head">
+      <div class="section-title">Recent Orders</div>
+      <div class="section-link" data-goto="orders">See all</div>
+    </div>
+    <div id="dashRecentOrders"></div>
+  </div>
+
+  <!-- ============ SCREEN: ORDERS ============ -->
+  <div class="screen" id="screen-orders">
+    <div class="chip-row" id="orderChips">
+      <div class="chip active" data-status="all">All</div>
+      <div class="chip" data-status="placed">Placed</div>
+      <div class="chip" data-status="preparing">Preparing</div>
+      <div class="chip" data-status="out">Out for Delivery</div>
+      <div class="chip" data-status="delivered">Delivered</div>
+      <div class="chip" data-status="cancelled">Cancelled</div>
+    </div>
+    <div class="section-head" style="margin-top:0;">
+      <div class="section-title"><span id="orderCount">0</span> Orders</div>
+    </div>
+    <div id="ordersList"></div>
+  </div>
+
+  <!-- ============ SCREEN: PRODUCTS ============ -->
+  <div class="screen" id="screen-products">
+    <div class="chip-row" id="prodChips">
+      <div class="chip active" data-cat="all">All</div>
+      <div class="chip" data-cat="milk">Milk</div>
+      <div class="chip" data-cat="curd">Curd &amp; Paneer</div>
+      <div class="chip" data-cat="ghee">Ghee &amp; Butter</div>
+      <div class="chip" data-cat="bread">Bread &amp; Eggs</div>
+    </div>
+    <div class="section-head" style="margin-top:0;">
+      <div class="section-title"><span id="prodCount">0</span> Products</div>
+      <div class="section-link" id="lowStockLink">⚠ 2 low stock</div>
+    </div>
+    <div class="prod-admin-grid" id="prodGrid"></div>
+    <button class="fab-add" id="fabAddProduct">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#231C08" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+    </button>
+  </div>
+
+  <!-- ============ SCREEN: DELIVERY BOYS ============ -->
+  <div class="screen" id="screen-delivery">
+    <div class="chip-row" id="dbChips">
+      <div class="chip active" data-dbstatus="all">All</div>
+      <div class="chip" data-dbstatus="pending">Pending</div>
+      <div class="chip" data-dbstatus="approved">Approved</div>
+      <div class="chip" data-dbstatus="suspended">Suspended</div>
+      <div class="chip" data-dbstatus="rejected">Rejected</div>
+    </div>
+    <div class="section-head" style="margin-top:0;">
+      <div class="section-title"><span id="dbCount">0</span> Delivery Partners</div>
+    </div>
+    <div id="dbList"></div>
+  </div>
+
+  <!-- ============ SCREEN: USERS ============ -->
+  <div class="screen" id="screen-users">
+    <div class="chip-row" id="userChips">
+      <div class="chip active" data-ustatus="all">All</div>
+      <div class="chip" data-ustatus="active">Active</div>
+      <div class="chip" data-ustatus="new">New this week</div>
+      <div class="chip" data-ustatus="blocked">Blocked</div>
+    </div>
+    <div class="section-head" style="margin-top:0;">
+      <div class="section-title"><span id="userCount">0</span> Users</div>
+    </div>
+    <div id="usersList"></div>
+  </div>
+
+  <!-- ============ SCREEN: ANALYTICS ============ -->
+  <div class="screen" id="screen-analytics">
+    <div class="section-head" style="margin-top:2px;">
+      <div class="section-title">Sales <span>this week</span></div>
+    </div>
+    <div class="list-card">
+      <div class="bar-chart" id="salesChart"></div>
+    </div>
+
+    <div class="stat-grid" style="margin-top:16px;">
+      <div class="stat-card">
+        <div class="stat-ic g"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 2v20M2 12h20"/></svg></div>
+        <div class="stat-value">₹3.1L</div>
+        <div class="stat-label">Revenue (30d)</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-ic y"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z"/></svg></div>
+        <div class="stat-value">1,942</div>
+        <div class="stat-label">Orders (30d)</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-ic b"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></div>
+        <div class="stat-value">₹159</div>
+        <div class="stat-label">Avg Order Value</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-ic r"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 6 6 18M6 6l12 12"/></svg></div>
+        <div class="stat-value">1.8%</div>
+        <div class="stat-label">Cancellation Rate</div>
+      </div>
+    </div>
+
+    <div class="section-head">
+      <div class="section-title">Top Products</div>
+    </div>
+    <div class="list-card" id="topProductsList"></div>
+
+    <div class="section-head">
+      <div class="section-title">Top Riders</div>
+    </div>
+    <div class="list-card" id="topRidersList"></div>
+  </div>
+
+  <!-- ============ SCREEN: MORE / ACCOUNT ============ -->
+  <div class="screen" id="screen-more">
+    <div class="account-header">
+      <div class="account-avatar">A</div>
+      <div>
+        <div class="account-name">Admin Console</div>
+        <div class="account-phone" id="adminEmailLabel">admin@pakkadoodhwala.in</div>
+      </div>
+    </div>
+
+    <div class="settings-group-title">Store</div>
+    <div class="settings-group">
+      <div class="settings-row" data-goto="coupons"><div class="left"><div class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20.59 13.41 13.42 20.6a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82Z"/><circle cx="7" cy="7" r="1.5"/></svg></div>Coupons &amp; Offers</div><span>›</span></div>
+      <div class="settings-row" data-goto="banners"><div class="left"><div class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></div>Home Banners</div><span>›</span></div>
+      <div class="settings-row" data-goto="categories"><div class="left"><div class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></div>Categories</div><span>›</span></div>
+      <div class="settings-row" data-goto="delivery-zones"><div class="left"><div class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg></div>Delivery Zones</div><span>›</span></div>
+    </div>
+
+    <div class="settings-group-title">Operations</div>
+    <div class="settings-group">
+      <div class="settings-row" data-goto="payments"><div class="left"><div class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="1" y="4" width="22" height="16" rx="2"/><path d="M1 10h22"/></svg></div>Payments &amp; Payouts</div><span>›</span></div>
+      <div class="settings-row" data-goto="reports"><div class="left"><div class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg></div>Reports &amp; Exports</div><span>›</span></div>
+      <div class="settings-row" data-goto="staff"><div class="left"><div class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div>Staff &amp; Roles</div><span>›</span></div>
+    </div>
+
+    <div class="settings-group-title">Support</div>
+    <div class="settings-group">
+      <div class="settings-row"><div class="left"><div class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 2-3 4M12 17h.01"/></svg></div>Help Center</div><span>›</span></div>
+      <div class="settings-row"><div class="left"><div class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 2 2 7l10 5 10-5-10-5ZM2 17l10 5 10-5M2 12l10 5 10-5"/></svg></div>App Version 2.4.1</div></div>
+      <div class="settings-row" id="logoutBtn"><div class="left"><div class="ic" style="background:var(--danger-light); color:var(--danger);"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg></div><span style="color:var(--danger);">Log Out</span></div></div>
+    </div>
+  </div>
+
+  <!-- ============ BOTTOM NAV ============ -->
+  <div class="bottomnav" id="bottomnav" style="display:none;">
+    <div class="nav-item active" data-screen="dashboard">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+      <span>Home</span>
+    </div>
+    <div class="nav-item" data-screen="orders">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z"/></svg>
+      <span>Orders</span>
+      <span class="nav-badge" id="navOrdersBadge" style="display:none;">0</span>
+    </div>
+    <div class="nav-item" data-screen="products">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2h8M9 2v5.2a3 3 0 0 1-.6 1.8L6 12.4A4 4 0 0 0 5 15v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5a4 4 0 0 0-1-2.6l-2.4-3.4A3 3 0 0 1 15 7.2V2"/></svg>
+      <span>Products</span>
+    </div>
+    <div class="nav-item" data-screen="delivery">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 3v5h-7z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+      <span>Riders</span>
+      <span class="nav-badge" id="navDbBadge" style="display:none;">0</span>
+    </div>
+    <div class="nav-item" data-screen="more">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>
+      <span>More</span>
+    </div>
+  </div>
+
+  <!-- ============ SHEET: ADD/EDIT PRODUCT ============ -->
+  <div class="sheet-backdrop" id="productSheetBackdrop">
+    <div class="sheet">
+      <div class="sheet-handle"></div>
+      <h3 id="productSheetTitle">Add Product</h3>
+      <div class="field">
+        <label>Product Images</label>
+        <div class="img-upload" id="imgUpload">
+          <label class="img-slot" id="imgAddSlot">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 5v14M5 12h14"/></svg>
+            <input type="file" accept="image/*" id="imgFileInput" style="display:none;" multiple>
+          </label>
+        </div>
+      </div>
+      <div class="field">
+        <label>Product Name</label>
+        <input type="text" id="pfName" placeholder="e.g. Full Cream Milk 500ml">
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Category</label>
+          <select id="pfCategory">
+            <option value="milk">Milk</option>
+            <option value="curd">Curd &amp; Paneer</option>
+            <option value="ghee">Ghee &amp; Butter</option>
+            <option value="bread">Bread &amp; Eggs</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Unit</label>
+          <input type="text" id="pfUnit" placeholder="500ml / 1kg">
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Price (₹)</label>
+          <input type="number" id="pfPrice" placeholder="45">
+        </div>
+        <div class="field">
+          <label>MRP (₹, optional)</label>
+          <input type="number" id="pfMrp" placeholder="50">
+        </div>
+      </div>
+      <div class="field">
+        <label>Stock Quantity</label>
+        <input type="number" id="pfStock" placeholder="120">
+      </div>
+      <div class="field">
+        <label>Description</label>
+        <textarea id="pfDesc" placeholder="Farm-fresh full cream milk, pasteurized daily..."></textarea>
+      </div>
+      <div class="toggle-row">
+        <div>
+          <div class="toggle-row-label">Available for sale</div>
+          <div class="toggle-row-sub">Turn off to hide from customer app</div>
+        </div>
+        <div class="switch on" id="pfAvailToggle"></div>
+      </div>
+      <div class="toggle-row">
+        <div>
+          <div class="toggle-row-label">Featured</div>
+          <div class="toggle-row-sub">Show in homepage highlights</div>
+        </div>
+        <div class="switch" id="pfFeaturedToggle"></div>
+      </div>
+      <button class="btn-primary" id="pfSaveBtn">Save Product</button>
+      <button class="btn-danger-outline" id="pfDeleteBtn" style="display:none;">Delete Product</button>
+      <button class="btn-secondary" id="pfCancelBtn">Cancel</button>
+    </div>
+  </div>
+
+  <!-- ============ SHEET: ORDER DETAIL ============ -->
+  <div class="sheet-backdrop" id="orderSheetBackdrop">
+    <div class="sheet">
+      <div class="sheet-handle"></div>
+      <div class="screen-header-row" style="margin-bottom:14px;">
+        <h3 id="orderSheetTitle" style="margin:0;">Order #PD1042</h3>
+      </div>
+      <div class="field">
+        <label>Customer</label>
+        <div class="list-card" id="orderCustomerInfo" style="margin-bottom:0;"></div>
+      </div>
+      <div class="field">
+        <label>Items</label>
+        <div class="list-card" id="orderItemsInfo" style="margin-bottom:0;"></div>
+      </div>
+      <div class="field">
+        <label>Delivery Status</label>
+        <div class="timeline" id="orderTimeline"></div>
+      </div>
+      <div class="field">
+        <label>Assign Delivery Partner</label>
+        <select id="orderAssignSelect"></select>
+      </div>
+      <div class="field">
+        <label>Update Status</label>
+        <select id="orderStatusSelect">
+          <option value="placed">Placed</option>
+          <option value="preparing">Preparing</option>
+          <option value="out">Out for Delivery</option>
+          <option value="delivered">Delivered</option>
+          <option value="cancelled">Cancelled</option>
+        </select>
+      </div>
+      <button class="btn-primary" id="orderUpdateBtn">Update Order</button>
+      <button class="btn-secondary" id="orderCancelBtn">Close</button>
+    </div>
+  </div>
+
+  <!-- ============ SHEET: DELIVERY BOY DETAIL ============ -->
+  <div class="sheet-backdrop" id="dbSheetBackdrop">
+    <div class="sheet">
+      <div class="sheet-handle"></div>
+      <h3 id="dbSheetTitle">Rider Details</h3>
+      <div id="dbSheetBody"></div>
+      <button class="btn-secondary" id="dbSheetCloseBtn">Close</button>
+    </div>
+  </div>
+
+  <!-- ============ SHEET: USER DETAIL ============ -->
+  <div class="sheet-backdrop" id="userSheetBackdrop">
+    <div class="sheet">
+      <div class="sheet-handle"></div>
+      <h3 id="userSheetTitle">User Details</h3>
+      <div id="userSheetBody"></div>
+      <button class="btn-secondary" id="userSheetCloseBtn">Close</button>
+    </div>
+  </div>
+
+  <!-- ============ SHEET: GENERIC (coupons/banners/etc placeholders) ============ -->
+  <div class="sheet-backdrop" id="genericSheetBackdrop">
+    <div class="sheet">
+      <div class="sheet-handle"></div>
+      <h3 id="genericSheetTitle">Section</h3>
+      <div id="genericSheetBody" style="font-size:13px; color:var(--muted); line-height:1.6;"></div>
+      <button class="btn-secondary" id="genericSheetCloseBtn">Close</button>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ============================================================
+     DATA MODEL (in-memory demo store — replace with real API calls)
+     ============================================================ */
+  let products = [
+    {id:'p1', name:'Full Cream Milk', unit:'500ml', category:'milk', price:32, mrp:36, stock:8, desc:'Farm fresh full cream milk, pasteurized daily.', available:true, featured:true, sold:412, img:null},
+    {id:'p2', name:'Toned Milk', unit:'1L', category:'milk', price:54, mrp:58, stock:120, desc:'Toned milk, low fat, high protein.', available:true, featured:true, sold:389, img:null},
+    {id:'p3', name:'Fresh Curd', unit:'400g', category:'curd', price:40, mrp:44, stock:0, desc:'Thick, creamy curd made fresh every morning.', available:true, featured:false, sold:201, img:null},
+    {id:'p4', name:'Paneer', unit:'200g', category:'curd', price:80, mrp:90, stock:35, desc:'Soft paneer cubes, made from full cream milk.', available:true, featured:false, sold:156, img:null},
+    {id:'p5', name:'Pure Ghee', unit:'500ml', category:'ghee', price:320, mrp:350, stock:22, desc:'Traditional bilona-method cow ghee.', available:true, featured:true, sold:98, img:null},
+    {id:'p6', name:'Table Butter', unit:'100g', category:'ghee', price:52, mrp:56, stock:60, desc:'Creamy salted butter.', available:false, featured:false, sold:64, img:null},
+    {id:'p7', name:'Brown Bread', unit:'400g', category:'bread', price:45, mrp:48, stock:14, desc:'Whole wheat brown bread, baked fresh.', available:true, featured:false, sold:77, img:null},
+    {id:'p8', name:'Farm Eggs', unit:'6 pcs', category:'bread', price:60, mrp:65, stock:9, desc:'Free-range farm eggs.', available:true, featured:false, sold:143, img:null}
+  ];
+
+  let deliveryBoys = [
+    {id:'d1', name:'Rajesh Kumar', phone:'+91 98765 43210', area:'Kittu Nagar', status:'pending', joined:'2 days ago', deliveries:0, rating:null, vehicle:'Bike - MH12 AB 1234'},
+    {id:'d2', name:'Suresh Yadav', phone:'+91 98765 11122', area:'Model Town', status:'pending', joined:'1 day ago', deliveries:0, rating:null, vehicle:'Bike - MH12 CD 5678'},
+    {id:'d3', name:'Amit Sharma', phone:'+91 98765 33445', area:'Civil Lines', status:'pending', joined:'5 hours ago', deliveries:0, rating:null, vehicle:'Bicycle'},
+    {id:'d4', name:'Vikram Singh', phone:'+91 91234 55667', area:'Kittu Nagar', status:'approved', joined:'4 months ago', deliveries:842, rating:4.8, vehicle:'Bike - MH12 EF 9012'},
+    {id:'d5', name:'Manoj Verma', phone:'+91 91234 77889', area:'Sadar Bazaar', status:'approved', joined:'8 months ago', deliveries:1204, rating:4.6, vehicle:'Bike - MH12 GH 3456'},
+    {id:'d6', name:'Deepak Rao', phone:'+91 91234 99001', area:'Model Town', status:'suspended', joined:'6 months ago', deliveries:390, rating:3.2, vehicle:'Bike - MH12 IJ 7890'},
+    {id:'d7', name:'Sanjay Patil', phone:'+91 91234 22334', area:'Civil Lines', status:'rejected', joined:'1 week ago', deliveries:0, rating:null, vehicle:'Bike - MH12 KL 2345'}
+  ];
+
+  let orders = [
+    {id:'PD1042', customer:'Neha Joshi', phone:'+91 90000 11111', address:'B-204, Kittu Nagar', items:[{name:'Full Cream Milk 500ml',qty:2,price:32},{name:'Fresh Curd 400g',qty:1,price:40}], total:104, status:'placed', date:'Today, 7:12 AM', assigned:null},
+    {id:'PD1041', customer:'Rohit Mehra', phone:'+91 90000 22222', address:'12, Model Town', items:[{name:'Toned Milk 1L',qty:1,price:54},{name:'Paneer 200g',qty:1,price:80}], total:134, status:'preparing', date:'Today, 6:58 AM', assigned:null},
+    {id:'PD1040', customer:'Kavita Rao', phone:'+91 90000 33333', address:'45, Sadar Bazaar', items:[{name:'Pure Ghee 500ml',qty:1,price:320}], total:320, status:'out', date:'Today, 6:40 AM', assigned:'d4'},
+    {id:'PD1039', customer:'Arjun Das', phone:'+91 90000 44444', address:'7, Civil Lines', items:[{name:'Farm Eggs 6pcs',qty:2,price:60},{name:'Brown Bread 400g',qty:1,price:45}], total:165, status:'delivered', date:'Yesterday, 8:02 PM', assigned:'d5'},
+    {id:'PD1038', customer:'Priya Nair', phone:'+91 90000 55555', address:'B-204, Kittu Nagar', items:[{name:'Full Cream Milk 500ml',qty:4,price:32}], total:128, status:'delivered', date:'Yesterday, 7:15 PM', assigned:'d4'},
+    {id:'PD1037', customer:'Sanya Kapoor', phone:'+91 90000 66666', address:'21, Model Town', items:[{name:'Table Butter 100g',qty:1,price:52}], total:52, status:'cancelled', date:'Yesterday, 5:30 PM', assigned:null}
+  ];
+
+  let users = [
+    {id:'u1', name:'Neha Joshi', phone:'+91 90000 11111', joined:'Aug 2024', orders:42, status:'active'},
+    {id:'u2', name:'Rohit Mehra', phone:'+91 90000 22222', joined:'Jan 2025', orders:18, status:'active'},
+    {id:'u3', name:'Kavita Rao', phone:'+91 90000 33333', joined:'2 days ago', orders:1, status:'new'},
+    {id:'u4', name:'Arjun Das', phone:'+91 90000 44444', joined:'Mar 2024', orders:96, status:'active'},
+    {id:'u5', name:'Priya Nair', phone:'+91 90000 55555', joined:'5 days ago', orders:2, status:'new'},
+    {id:'u6', name:'Sanya Kapoor', phone:'+91 90000 66666', joined:'Jun 2023', orders:5, status:'blocked'}
+  ];
+
+  const statusLabel = {placed:'Placed', preparing:'Preparing', out:'Out for Delivery', delivered:'Delivered', cancelled:'Cancelled'};
+  const catLabel = {milk:'Milk', curd:'Curd & Paneer', ghee:'Ghee & Butter', bread:'Bread & Eggs'};
+
+  let currentOrderFilter = 'all';
+  let currentProdFilter = 'all';
+  let currentDbFilter = 'all';
+  let currentUserFilter = 'all';
+  let editingProductId = null;
+  let activeOrderId = null;
+  let activeDbId = null;
+  let activeUserId = null;
+  let pendingImages = [];
+
+  /* ============================================================
+     UTILITIES
+     ============================================================ */
+  function $(sel){ return document.querySelector(sel); }
+  function $all(sel){ return Array.from(document.querySelectorAll(sel)); }
+  function initials(name){ return name.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase(); }
+
+  function showToast(msg){
+    const t = $('#toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(()=>t.classList.remove('show'), 2200);
+  }
+
+  function openSheet(id){ $(id).classList.add('show'); }
+  function closeSheet(id){ $(id).classList.remove('show'); }
+
+  /* ============================================================
+     NAVIGATION
+     ============================================================ */
+  function goto(screenName){
+    $all('.screen').forEach(s=>s.classList.remove('active'));
+    const target = $('#screen-' + screenName);
+    if(target) target.classList.add('active');
+    $all('.nav-item[data-screen]').forEach(n=>{
+      n.classList.toggle('active', n.dataset.screen === screenName);
+    });
+    const titles = {
+      dashboard:['Dashboard','All systems live'],
+      orders:['Orders','Manage all orders'],
+      products:['Products','Catalog management'],
+      delivery:['Delivery Partners','Riders & approvals'],
+      users:['Users','Customer accounts'],
+      analytics:['Analytics','Business insights'],
+      more:['More','Settings & tools']
+    };
+    if(titles[screenName]){
+      $('#topbarTitle').textContent = titles[screenName][0];
+      $('#topbarSub').textContent = titles[screenName][1];
+    }
+    $('#searchRow').style.display = (screenName==='orders'||screenName==='products'||screenName==='users'||screenName==='delivery') ? 'flex' : 'none';
+    window.scrollTo(0,0);
+    renderAll();
+  }
+
+  $all('.nav-item[data-screen]').forEach(item=>{
+    item.addEventListener('click', ()=>goto(item.dataset.screen));
+  });
+
+  $all('[data-goto]').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      const screenName = el.dataset.goto;
+      const knownScreens = ['dashboard','orders','products','delivery','users','analytics','more'];
+      if(knownScreens.includes(screenName)){
+        goto(screenName);
+        if(el.dataset.filter){
+          setTimeout(()=>applyQuickFilter(screenName, el.dataset.filter), 50);
+        }
+        if(el.dataset.action === 'add-product'){
+          setTimeout(()=>openProductSheet(null), 200);
+        }
+      } else {
+        openGenericSheet(screenName);
+      }
+    });
+  });
+
+  function applyQuickFilter(screenName, filter){
+    if(screenName === 'delivery'){
+      currentDbFilter = filter;
+      $all('#dbChips .chip').forEach(c=>c.classList.toggle('active', c.dataset.dbstatus===filter));
+      renderDeliveryBoys();
+    } else if(screenName === 'orders'){
+      currentOrderFilter = filter;
+      $all('#orderChips .chip').forEach(c=>c.classList.toggle('active', c.dataset.status===filter));
+      renderOrders();
+    }
+  }
+
+  function openGenericSheet(name){
+    const map = {
+      coupons: ['Coupons & Offers', 'Create and manage discount codes, cashback offers and festival promotions. Active coupons: WELCOME50, FLAT20, MILK10.'],
+      banners: ['Home Banners', 'Upload and reorder promotional banners shown on the customer app home screen.'],
+      categories: ['Categories', 'Manage product categories: Milk, Curd & Paneer, Ghee & Butter, Bread & Eggs. Add new categories or reorder them.'],
+      'delivery-zones': ['Delivery Zones', 'Define serviceable pin codes and delivery hub boundaries: Kittu Nagar, Model Town, Civil Lines, Sadar Bazaar.'],
+      payments: ['Payments & Payouts', 'View settlement reports and configure rider payout schedules. Next payout run: Friday 6 PM.'],
+      reports: ['Reports & Exports', 'Export sales, inventory and delivery reports as CSV. Last export: 2 days ago.'],
+      staff: ['Staff & Roles', 'Manage admin team members and their permission levels (Super Admin, Manager, Support).']
+    };
+    const [title, body] = map[name] || ['Section', 'This section is under construction.'];
+    $('#genericSheetTitle').textContent = title;
+    $('#genericSheetBody').textContent = body;
+    openSheet('#genericSheetBackdrop');
+  }
+  $('#genericSheetCloseBtn').addEventListener('click', ()=>closeSheet('#genericSheetBackdrop'));
+  $('#genericSheetBackdrop').addEventListener('click', e=>{ if(e.target===e.currentTarget) closeSheet('#genericSheetBackdrop'); });
+
+  /* ============================================================
+     LOGIN
+     ============================================================ */
+  /* ------------------------------------------------------------
+     TEMPORARY DEMO CREDENTIALS — replace with real backend/Firebase
+     auth before going live. This is a client-side check only and
+     is NOT secure (anyone can read it from the page source).
+     ------------------------------------------------------------ */
+  const DEMO_ADMIN_EMAIL = 'admin@pakkadoodhwala.in';
+  const DEMO_ADMIN_PASS  = 'admin@123';
+
+  $('#loginBtn').addEventListener('click', ()=>{
+    const email = $('#loginEmail').value.trim();
+    const pass = $('#loginPass').value.trim();
+    const errEl = $('#loginError');
+
+    if(!email || !pass){ showToast('Enter email & password'); return; }
+
+    if(email.toLowerCase() !== DEMO_ADMIN_EMAIL.toLowerCase() || pass !== DEMO_ADMIN_PASS){
+      errEl.style.display = 'block';
+      showToast('Invalid email or password');
+      return;
+    }
+
+    errEl.style.display = 'none';
+    $('#screen-login').classList.remove('active');
+    $('#screen-login').style.display = 'none';
+    $('#topbar').style.display = 'block';
+    $('#bottomnav').style.display = 'flex';
+    $('#adminEmailLabel').textContent = email;
+    goto('dashboard');
+    showToast('Welcome back, Admin!');
+  });
+
+  // Allow pressing Enter in either field to submit
+  $('#loginEmail').addEventListener('keydown', e=>{ if(e.key==='Enter') $('#loginBtn').click(); });
+  $('#loginPass').addEventListener('keydown', e=>{ if(e.key==='Enter') $('#loginBtn').click(); });
+
+  /* ============================================================
+     DASHBOARD RENDER
+     ============================================================ */
+  function renderDashboard(){
+    const pendingRiders = deliveryBoys.filter(d=>d.status==='pending');
+    $('#statRiders').textContent = deliveryBoys.filter(d=>d.status==='approved').length;
+
+    const pendWrap = $('#dashPendingList');
+    pendWrap.innerHTML = '';
+    if(pendingRiders.length === 0){
+      pendWrap.innerHTML = '<div class="empty-state" style="padding:24px 10px;"><div class="empty-state-sub">No pending approvals right now 🎉</div></div>';
+    } else {
+      pendingRiders.slice(0,3).forEach(d=>pendWrap.appendChild(buildDbCard(d)));
+    }
+
+    const recWrap = $('#dashRecentOrders');
+    recWrap.innerHTML = '';
+    orders.slice(0,3).forEach(o=>recWrap.appendChild(buildOrderCard(o)));
+  }
+
+  /* ============================================================
+     ORDERS
+     ============================================================ */
+  function buildOrderCard(o){
+    const div = document.createElement('div');
+    div.className = 'order-card';
+    const itemsStr = o.items.map(i=>`${i.qty}× ${i.name}`).join(', ');
+    const rider = o.assigned ? deliveryBoys.find(d=>d.id===o.assigned) : null;
+    div.innerHTML = `
+      <div class="order-top">
+        <div>
+          <div class="order-id">#${o.id}</div>
+          <div class="order-date">${o.date} &middot; ${o.customer}</div>
+        </div>
+        <div class="order-status ${o.status}">${statusLabel[o.status]}</div>
+      </div>
+      <div class="order-items">${itemsStr}</div>
+      ${rider ? `<div class="order-assign"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 3v5h-7z"/></svg> ${rider.name}</div>` : ''}
+      <div class="order-bottom" style="margin-top:10px;">
+        <b>₹${o.total}</b>
+        <div class="order-link">Manage →</div>
+      </div>
+    `;
+    div.addEventListener('click', ()=>openOrderSheet(o.id));
+    return div;
+  }
+
+  function renderOrders(){
+    const list = $('#ordersList');
+    list.innerHTML = '';
+    const filtered = currentOrderFilter === 'all' ? orders : orders.filter(o=>o.status===currentOrderFilter);
+    $('#orderCount').textContent = filtered.length;
+    if(filtered.length === 0){
+      list.innerHTML = '<div class="empty-state"><div class="empty-state-title">No orders here</div><div class="empty-state-sub">Try a different filter</div></div>';
+      return;
+    }
+    filtered.forEach(o=>list.appendChild(buildOrderCard(o)));
+  }
+
+  $all('#orderChips .chip').forEach(chip=>{
+    chip.addEventListener('click', ()=>{
+      $all('#orderChips .chip').forEach(c=>c.classList.remove('active'));
+      chip.classList.add('active');
+      currentOrderFilter = chip.dataset.status;
+      renderOrders();
+    });
+  });
+
+  function openOrderSheet(orderId){
+    activeOrderId = orderId;
+    const o = orders.find(x=>x.id===orderId);
+    if(!o) return;
+    $('#orderSheetTitle').textContent = 'Order #' + o.id;
+    $('#orderCustomerInfo').innerHTML = `
+      <div style="font-weight:800; font-size:13.5px;">${o.customer}</div>
+      <div style="font-size:11.5px; color:var(--muted); margin-top:3px;">${o.phone}</div>
+      <div style="font-size:11.5px; color:var(--muted); margin-top:3px;">${o.address}</div>
+    `;
+    $('#orderItemsInfo').innerHTML = o.items.map(i=>`
+      <div style="display:flex; justify-content:space-between; font-size:12.5px; padding:5px 0;">
+        <span>${i.qty}× ${i.name}</span><b>₹${i.qty*i.price}</b>
+      </div>`).join('') + `<div style="display:flex; justify-content:space-between; font-size:13.5px; font-weight:800; border-top:1px dashed var(--line); margin-top:6px; padding-top:8px;"><span>Total</span><span>₹${o.total}</span></div>`;
+
+    const steps = ['placed','preparing','out','delivered'];
+    const curIdx = steps.indexOf(o.status);
+    const tlLabels = {placed:'Order Placed', preparing:'Preparing', out:'Out for Delivery', delivered:'Delivered'};
+    let tlHtml = '';
+    if(o.status === 'cancelled'){
+      tlHtml = `<div class="tl-step done"><div class="tl-dot" style="background:var(--danger); color:#fff;">✕</div><div><div class="tl-label">Order Cancelled</div><div class="tl-time">${o.date}</div></div></div>`;
+    } else {
+      steps.forEach((s,idx)=>{
+        const cls = idx < curIdx ? 'done' : (idx === curIdx ? 'current' : '');
+        tlHtml += `<div class="tl-step ${cls}"><div class="tl-dot">${idx<curIdx?'✓':(idx+1)}</div><div><div class="tl-label">${tlLabels[s]}</div><div class="tl-time">${idx<=curIdx? o.date : 'Pending'}</div></div></div>`;
+      });
+    }
+    $('#orderTimeline').innerHTML = tlHtml;
+
+    const assignSel = $('#orderAssignSelect');
+    assignSel.innerHTML = '<option value="">— Not Assigned —</option>' +
+      deliveryBoys.filter(d=>d.status==='approved').map(d=>`<option value="${d.id}" ${o.assigned===d.id?'selected':''}>${d.name} (${d.area})</option>`).join('');
+
+    $('#orderStatusSelect').value = o.status;
+    openSheet('#orderSheetBackdrop');
+  }
+
+  $('#orderUpdateBtn').addEventListener('click', ()=>{
+    const o = orders.find(x=>x.id===activeOrderId);
+    if(!o) return;
+    o.status = $('#orderStatusSelect').value;
+    const assignVal = $('#orderAssignSelect').value;
+    o.assigned = assignVal || null;
+    closeSheet('#orderSheetBackdrop');
+    renderAll();
+    showToast(`Order #${o.id} updated`);
+  });
+  $('#orderCancelBtn').addEventListener('click', ()=>closeSheet('#orderSheetBackdrop'));
+  $('#orderSheetBackdrop').addEventListener('click', e=>{ if(e.target===e.currentTarget) closeSheet('#orderSheetBackdrop'); });
+
+  /* ============================================================
+     PRODUCTS
+     ============================================================ */
+  function stockBadge(p){
+    if(p.stock <= 0) return '<span class="stock-badge out">Out of Stock</span>';
+    if(p.stock <= 15) return '<span class="stock-badge low">Low Stock</span>';
+    return '<span class="stock-badge in">In Stock</span>';
+  }
+
+  function buildProductCard(p){
+    const div = document.createElement('div');
+    div.className = 'prod-admin-card';
+    div.innerHTML = `
+      <div class="prod-admin-thumb">
+        ${stockBadge(p)}
+        ${p.img ? `<img src="${p.img}" alt="${p.name}">` : `<svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="1.6"><path d="M4 16l4.5-6 4 5 3-4L20 16"/><rect x="3" y="4" width="18" height="16" rx="2"/></svg>`}
+      </div>
+      <div class="prod-admin-body">
+        <div class="prod-admin-name">${p.name}</div>
+        <div class="prod-admin-meta">${p.unit} &middot; ${catLabel[p.category]}${!p.available?' &middot; <span style="color:var(--danger);">Hidden</span>':''}</div>
+        <div class="prod-admin-bottom">
+          <div class="prod-admin-price">₹${p.price}</div>
+          <button class="prod-admin-edit" data-edit="${p.id}">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg>
+          </button>
+        </div>
+      </div>
+    `;
+    div.querySelector('[data-edit]').addEventListener('click', (e)=>{
+      e.stopPropagation();
+      openProductSheet(p.id);
+    });
+    return div;
+  }
+
+  function renderProducts(){
+    const grid = $('#prodGrid');
+    grid.innerHTML = '';
+    const filtered = currentProdFilter === 'all' ? products : products.filter(p=>p.category===currentProdFilter);
+    $('#prodCount').textContent = filtered.length;
+    const lowCount = products.filter(p=>p.stock>0 && p.stock<=15).length;
+    const outCount = products.filter(p=>p.stock<=0).length;
+    $('#lowStockLink').textContent = (lowCount+outCount) > 0 ? `⚠ ${lowCount} low, ${outCount} out` : '✓ Stock healthy';
+    if(filtered.length === 0){
+      grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1;"><div class="empty-state-title">No products</div><div class="empty-state-sub">Tap + to add your first product</div></div>';
+      return;
+    }
+    filtered.forEach(p=>grid.appendChild(buildProductCard(p)));
+  }
+
+  $all('#prodChips .chip').forEach(chip=>{
+    chip.addEventListener('click', ()=>{
+      $all('#prodChips .chip').forEach(c=>c.classList.remove('active'));
+      chip.classList.add('active');
+      currentProdFilter = chip.dataset.cat;
+      renderProducts();
+    });
+  });
+
+  function resetProductForm(){
+    $('#pfName').value = '';
+    $('#pfCategory').value = 'milk';
+    $('#pfUnit').value = '';
+    $('#pfPrice').value = '';
+    $('#pfMrp').value = '';
+    $('#pfStock').value = '';
+    $('#pfDesc').value = '';
+    $('#pfAvailToggle').classList.add('on');
+    $('#pfFeaturedToggle').classList.remove('on');
+    pendingImages = [];
+    renderImgSlots();
+  }
+
+  function renderImgSlots(){
+    const wrap = $('#imgUpload');
+    Array.from(wrap.querySelectorAll('.img-slot:not(#imgAddSlot)')).forEach(el=>el.remove());
+    pendingImages.forEach((src, idx)=>{
+      const slot = document.createElement('div');
+      slot.className = 'img-slot';
+      slot.innerHTML = `<img src="${src}"><div class="rm" data-rm="${idx}">✕</div>`;
+      slot.querySelector('.rm').addEventListener('click', (e)=>{
+        e.stopPropagation();
+        pendingImages.splice(idx,1);
+        renderImgSlots();
+      });
+      wrap.insertBefore(slot, $('#imgAddSlot'));
+    });
+  }
+
+  $('#imgFileInput').addEventListener('change', (e)=>{
+    const files = Array.from(e.target.files || []);
+    files.forEach(file=>{
+      const reader = new FileReader();
+      reader.onload = ev=>{
+        pendingImages.push(ev.target.result);
+        renderImgSlots();
+      };
+      reader.readAsDataURL(file);
+    });
+    e.target.value = '';
+  });
+
+  function openProductSheet(productId){
+    editingProductId = productId;
+    if(productId){
+      const p = products.find(x=>x.id===productId);
+      $('#productSheetTitle').textContent = 'Edit Product';
+      $('#pfName').value = p.name;
+      $('#pfCategory').value = p.category;
+      $('#pfUnit').value = p.unit;
+      $('#pfPrice').value = p.price;
+      $('#pfMrp').value = p.mrp || '';
+      $('#pfStock').value = p.stock;
+      $('#pfDesc').value = p.desc || '';
+      $('#pfAvailToggle').classList.toggle('on', p.available);
+      $('#pfFeaturedToggle').classList.toggle('on', p.featured);
+      pendingImages = p.img ? [p.img] : [];
+      renderImgSlots();
+      $('#pfDeleteBtn').style.display = 'block';
+    } else {
+      $('#productSheetTitle').textContent = 'Add Product';
+      resetProductForm();
+      $('#pfDeleteBtn').style.display = 'none';
+    }
+    openSheet('#productSheetBackdrop');
+  }
+
+  $('#fabAddProduct').addEventListener('click', ()=>openProductSheet(null));
+  $('#pfCancelBtn').addEventListener('click', ()=>closeSheet('#productSheetBackdrop'));
+  $('#productSheetBackdrop').addEventListener('click', e=>{ if(e.target===e.currentTarget) closeSheet('#productSheetBackdrop'); });
+  $('#pfAvailToggle').addEventListener('click', ()=>$('#pfAvailToggle').classList.toggle('on'));
+  $('#pfFeaturedToggle').addEventListener('click', ()=>$('#pfFeaturedToggle').classList.toggle('on'));
+
+  $('#pfSaveBtn').addEventListener('click', ()=>{
+    const name = $('#pfName').value.trim();
+    const price = parseFloat($('#pfPrice').value);
+    if(!name){ showToast('Enter a product name'); return; }
+    if(!price || price<=0){ showToast('Enter a valid price'); return; }
+
+    const data = {
+      name,
+      category: $('#pfCategory').value,
+      unit: $('#pfUnit').value.trim() || '-',
+      price,
+      mrp: parseFloat($('#pfMrp').value) || null,
+      stock: parseInt($('#pfStock').value) || 0,
+      desc: $('#pfDesc').value.trim(),
+      available: $('#pfAvailToggle').classList.contains('on'),
+      featured: $('#pfFeaturedToggle').classList.contains('on'),
+      img: pendingImages[0] || null
+    };
+
+    if(editingProductId){
+      const p = products.find(x=>x.id===editingProductId);
+      Object.assign(p, data);
+      showToast('Product updated');
+    } else {
+      data.id = 'p' + (Date.now());
+      data.sold = 0;
+      products.unshift(data);
+      showToast('Product added');
+    }
+    closeSheet('#productSheetBackdrop');
+    renderProducts();
+    renderDashboard();
+  });
+
+  $('#pfDeleteBtn').addEventListener('click', ()=>{
+    if(!editingProductId) return;
+    products = products.filter(p=>p.id!==editingProductId);
+    closeSheet('#productSheetBackdrop');
+    renderProducts();
+    showToast('Product deleted');
+  });
+
+  /* ============================================================
+     DELIVERY BOYS (Riders)
+     ============================================================ */
+  function buildDbCard(d){
+    const div = document.createElement('div');
+    div.className = 'list-card db-card';
+    let actionsHtml = '';
+    if(d.status === 'pending'){
+      actionsHtml = `<button class="btn-tiny approve" data-approve="${d.id}">Approve</button><button class="btn-tiny reject" data-reject="${d.id}">Reject</button>`;
+    } else if(d.status === 'approved'){
+      actionsHtml = `<button class="btn-tiny suspend" data-suspend="${d.id}">Suspend</button><button class="btn-tiny ghost" data-view="${d.id}">View</button>`;
+    } else if(d.status === 'suspended'){
+      actionsHtml = `<button class="btn-tiny reactivate" data-reactivate="${d.id}">Reactivate</button><button class="btn-tiny ghost" data-view="${d.id}">View</button>`;
+    } else if(d.status === 'rejected'){
+      actionsHtml = `<button class="btn-tiny reactivate" data-reactivate="${d.id}">Re-approve</button>`;
+    }
+    div.innerHTML = `
+      <div class="db-avatar">${initials(d.name)}</div>
+      <div class="db-info">
+        <div class="db-name">${d.name}</div>
+        <div class="db-meta">${d.area} &middot; ${d.vehicle}</div>
+        <div class="db-meta">${d.phone}</div>
+        <div class="db-status ${d.status}">${d.status}</div>
+      </div>
+      <div class="db-actions">${actionsHtml}</div>
+    `;
+    div.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click', (e)=>{e.stopPropagation(); openDbSheet(d.id);}));
+    div.addEventListener('click', ()=>openDbSheet(d.id));
+    div.querySelectorAll('button').forEach(btn=>{
+      btn.addEventListener('click', (e)=>{
+        e.stopPropagation();
+        if(btn.dataset.approve){ setDbStatus(btn.dataset.approve,'approved'); }
+        if(btn.dataset.reject){ setDbStatus(btn.dataset.reject,'rejected'); }
+        if(btn.dataset.suspend){ setDbStatus(btn.dataset.suspend,'suspended'); }
+        if(btn.dataset.reactivate){ setDbStatus(btn.dataset.reactivate,'approved'); }
+      });
+    });
+    return div;
+  }
+
+  function setDbStatus(id, status){
+    const d = deliveryBoys.find(x=>x.id===id);
+    if(!d) return;
+    d.status = status;
+    const msgs = {approved:'Rider approved ✓', rejected:'Rider rejected', suspended:'Rider suspended', };
+    showToast(msgs[status] || 'Rider updated');
+    renderAll();
+  }
+
+  function renderDeliveryBoys(){
+    const list = $('#dbList');
+    list.innerHTML = '';
+    const filtered = currentDbFilter === 'all' ? deliveryBoys : deliveryBoys.filter(d=>d.status===currentDbFilter);
+    $('#dbCount').textContent = filtered.length;
+    const pendingCount = deliveryBoys.filter(d=>d.status==='pending').length;
+    $('#navDbBadge').style.display = pendingCount>0 ? 'flex' : 'none';
+    $('#navDbBadge').textContent = pendingCount;
+    if(filtered.length===0){
+      list.innerHTML = '<div class="empty-state"><div class="empty-state-title">No riders here</div><div class="empty-state-sub">Try a different filter</div></div>';
+      return;
+    }
+    filtered.forEach(d=>list.appendChild(buildDbCard(d)));
+  }
+
+  $all('#dbChips .chip').forEach(chip=>{
+    chip.addEventListener('click', ()=>{
+      $all('#dbChips .chip').forEach(c=>c.classList.remove('active'));
+      chip.classList.add('active');
+      currentDbFilter = chip.dataset.dbstatus;
+      renderDeliveryBoys();
+    });
+  });
+
+  function openDbSheet(id){
+    activeDbId = id;
+    const d = deliveryBoys.find(x=>x.id===id);
+    if(!d) return;
+    $('#dbSheetTitle').textContent = d.name;
+    $('#dbSheetBody').innerHTML = `
+      <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">
+        <div class="db-avatar" style="width:56px;height:56px;font-size:18px;">${initials(d.name)}</div>
+        <div>
+          <div style="font-weight:800; font-size:14px;">${d.name}</div>
+          <div class="db-status ${d.status}" style="margin-top:5px;">${d.status}</div>
+        </div>
+      </div>
+      <div class="field"><label>Phone</label><input type="text" value="${d.phone}" readonly></div>
+      <div class="field"><label>Area</label><input type="text" value="${d.area}" readonly></div>
+      <div class="field"><label>Vehicle</label><input type="text" value="${d.vehicle}" readonly></div>
+      <div class="field-row">
+        <div class="field"><label>Total Deliveries</label><input type="text" value="${d.deliveries}" readonly></div>
+        <div class="field"><label>Rating</label><input type="text" value="${d.rating ? d.rating+' ★' : '—'}" readonly></div>
+      </div>
+      <div class="field"><label>Joined</label><input type="text" value="${d.joined}" readonly></div>
+    `;
+    openSheet('#dbSheetBackdrop');
+  }
+  $('#dbSheetCloseBtn').addEventListener('click', ()=>closeSheet('#dbSheetBackdrop'));
+  $('#dbSheetBackdrop').addEventListener('click', e=>{ if(e.target===e.currentTarget) closeSheet('#dbSheetBackdrop'); });
+
+  /* ============================================================
+     USERS
+     ============================================================ */
+  function buildUserCard(u){
+    const div = document.createElement('div');
+    div.className = 'list-card user-card';
+    div.innerHTML = `
+      <div class="user-avatar">${initials(u.name)}</div>
+      <div class="user-info">
+        <div class="user-name">${u.name}</div>
+        <div class="user-meta">${u.phone} &middot; Joined ${u.joined}</div>
+        <div class="user-orders">${u.orders} orders placed</div>
+      </div>
+      ${u.status==='blocked' ? '<div class="db-status rejected">blocked</div>' : (u.status==='new' ? '<div class="db-status pending">new</div>' : '')}
+    `;
+    div.addEventListener('click', ()=>openUserSheet(u.id));
+    return div;
+  }
+
+  function renderUsers(){
+    const list = $('#usersList');
+    list.innerHTML = '';
+    const filtered = currentUserFilter === 'all' ? users : users.filter(u=>u.status===currentUserFilter);
+    $('#userCount').textContent = filtered.length;
+    if(filtered.length===0){
+      list.innerHTML = '<div class="empty-state"><div class="empty-state-title">No users here</div><div class="empty-state-sub">Try a different filter</div></div>';
+      return;
+    }
+    filtered.forEach(u=>list.appendChild(buildUserCard(u)));
+  }
+
+  $all('#userChips .chip').forEach(chip=>{
+    chip.addEventListener('click', ()=>{
+      $all('#userChips .chip').forEach(c=>c.classList.remove('active'));
+      chip.classList.add('active');
+      currentUserFilter = chip.dataset.ustatus;
+      renderUsers();
+    });
+  });
+
+  function openUserSheet(id){
+    activeUserId = id;
+    const u = users.find(x=>x.id===id);
+    if(!u) return;
+    $('#userSheetTitle').textContent = u.name;
+    const userOrders = orders.filter(o=>o.customer===u.name);
+    $('#userSheetBody').innerHTML = `
+      <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">
+        <div class="user-avatar" style="width:56px;height:56px;font-size:18px;">${initials(u.name)}</div>
+        <div>
+          <div style="font-weight:800; font-size:14px;">${u.name}</div>
+          <div style="font-size:12px; color:var(--muted); margin-top:3px;">${u.phone}</div>
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>Total Orders</label><input type="text" value="${u.orders}" readonly></div>
+        <div class="field"><label>Joined</label><input type="text" value="${u.joined}" readonly></div>
+      </div>
+      <div class="field"><label>Recent Orders</label></div>
+      ${userOrders.length ? userOrders.map(o=>`<div class="list-card" style="margin-bottom:8px;"><div style="display:flex; justify-content:space-between;"><b style="font-size:12.5px;">#${o.id}</b><span class="order-status ${o.status}">${statusLabel[o.status]}</span></div><div style="font-size:11.5px; color:var(--muted); margin-top:4px;">${o.date} &middot; ₹${o.total}</div></div>`).join('') : '<div style="font-size:12px; color:var(--muted);">No recent orders on this device.</div>'}
+      <button class="btn-danger-outline" id="userBlockBtn" style="margin-top:6px;">${u.status==='blocked'?'Unblock User':'Block User'}</button>
+    `;
+    openSheet('#userSheetBackdrop');
+    $('#userBlockBtn').addEventListener('click', ()=>{
+      u.status = u.status==='blocked' ? 'active' : 'blocked';
+      showToast(u.status==='blocked' ? 'User blocked' : 'User unblocked');
+      closeSheet('#userSheetBackdrop');
+      renderUsers();
+    });
+  }
+  $('#userSheetCloseBtn').addEventListener('click', ()=>closeSheet('#userSheetBackdrop'));
+  $('#userSheetBackdrop').addEventListener('click', e=>{ if(e.target===e.currentTarget) closeSheet('#userSheetBackdrop'); });
+
+  /* ============================================================
+     ANALYTICS
+     ============================================================ */
+  function renderAnalytics(){
+    const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+    const vals = [38,52,45,60,55,72,64];
+    const max = Math.max(...vals);
+    const chart = $('#salesChart');
+    chart.innerHTML = '';
+    days.forEach((d,idx)=>{
+      const col = document.createElement('div');
+      col.className = 'bar-col';
+      const h = Math.round((vals[idx]/max)*100);
+      col.innerHTML = `<div class="bar-fill" style="height:${h}px;"></div><div class="bar-label">${d}</div>`;
+      chart.appendChild(col);
+    });
+
+    const topProds = [...products].sort((a,b)=>b.sold-a.sold).slice(0,5);
+    $('#topProductsList').innerHTML = topProds.map((p,idx)=>`
+      <div class="top-prod-row">
+        <div class="top-prod-rank">${idx+1}</div>
+        <div class="top-prod-info">
+          <div class="top-prod-name">${p.name}</div>
+          <div class="top-prod-sub">${p.unit} &middot; ${catLabel[p.category]}</div>
+        </div>
+        <div class="top-prod-val">${p.sold} sold</div>
+      </div>
+    `).join('');
+
+    const topRiders = [...deliveryBoys].filter(d=>d.status==='approved').sort((a,b)=>b.deliveries-a.deliveries).slice(0,5);
+    $('#topRidersList').innerHTML = topRiders.map((d,idx)=>`
+      <div class="top-prod-row">
+        <div class="top-prod-rank">${idx+1}</div>
+        <div class="top-prod-info">
+          <div class="top-prod-name">${d.name}</div>
+          <div class="top-prod-sub">${d.area}</div>
+        </div>
+        <div class="top-prod-val">${d.deliveries} · ${d.rating}★</div>
+      </div>
+    `).join('');
+  }
+
+  /* ============================================================
+     TOP-LEVEL RENDER + MISC
+     ============================================================ */
+  function updateNavBadges(){
+    const activeOrders = orders.filter(o=>o.status==='placed').length;
+    $('#navOrdersBadge').style.display = activeOrders>0 ? 'flex' : 'none';
+    $('#navOrdersBadge').textContent = activeOrders;
+    const pendingCount = deliveryBoys.filter(d=>d.status==='pending').length;
+    $('#navDbBadge').style.display = pendingCount>0 ? 'flex' : 'none';
+    $('#navDbBadge').textContent = pendingCount;
+  }
+
+  function renderAll(){
+    renderDashboard();
+    renderOrders();
+    renderProducts();
+    renderDeliveryBoys();
+    renderUsers();
+    renderAnalytics();
+    updateNavBadges();
+  }
+
+  $('#refreshBtn').addEventListener('click', ()=>{
+    showToast('Refreshed');
+    renderAll();
+  });
+  $('#notifBtn').addEventListener('click', ()=>{
+    showToast('3 new notifications');
+  });
+  $('#logoutBtn').addEventListener('click', ()=>{
+    $('#topbar').style.display = 'none';
+    $('#bottomnav').style.display = 'none';
+    $all('.screen').forEach(s=>s.classList.remove('active'));
+    $('#screen-login').style.display = 'flex';
+    $('#screen-login').classList.add('active');
+    showToast('Logged out');
+  });
+
+  $('#globalSearch').addEventListener('input', (e)=>{
+    const q = e.target.value.toLowerCase();
+    const activeScreen = $all('.screen.active')[0];
+    if(!activeScreen) return;
+    if(activeScreen.id === 'screen-products'){
+      $all('#prodGrid .prod-admin-card').forEach(card=>{
+        const name = card.querySelector('.prod-admin-name').textContent.toLowerCase();
+        card.style.display = name.includes(q) ? '' : 'none';
+      });
+    } else if(activeScreen.id === 'screen-orders'){
+      $all('#ordersList .order-card').forEach(card=>{
+        const txt = card.textContent.toLowerCase();
+        card.style.display = txt.includes(q) ? '' : 'none';
+      });
+    } else if(activeScreen.id === 'screen-users'){
+      $all('#usersList .user-card').forEach(card=>{
+        const txt = card.textContent.toLowerCase();
+        card.style.display = txt.includes(q) ? '' : 'none';
+      });
+    } else if(activeScreen.id === 'screen-delivery'){
+      $all('#dbList .db-card').forEach(card=>{
+        const txt = card.textContent.toLowerCase();
+        card.style.display = txt.includes(q) ? '' : 'none';
+      });
+    }
+  });
+
+  // initial render (data ready even before login for instant nav after auth)
+  renderAll();
+
+})();
+</script>
+</body>
+</html>
