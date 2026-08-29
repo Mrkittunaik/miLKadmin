@@ -58,8 +58,9 @@
     width:44px; height:44px; border-radius:5px;
     display:flex; align-items:center; justify-content:center;
     overflow:hidden; flex-shrink:0; background:#231C08;
-    font-weight:800; color:var(--yellow); font-size:16px;
+    font-weight:800; color:var(--yellow); font-size:16px; padding:4px;
   }
+  .brand-icon img{width:100%; height:100%; object-fit:contain;}
   .brand-text{display:flex; flex-direction:column; line-height:1.15;}
   .brand-title{font-size:17px; font-weight:800; letter-spacing:-.2px; color:#1E1806;}
   .brand-sub{font-size:11px; color:#5A4E1F; font-weight:600; display:flex; align-items:center; gap:5px; margin-top:2px;}
@@ -435,7 +436,8 @@
 
   /* login screen */
   .login-wrap{flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:32px;}
-  .login-logo{width:78px; height:78px; border-radius:16px; background:#231C08; display:flex; align-items:center; justify-content:center; color:var(--yellow); font-weight:800; font-size:28px; margin-bottom:18px; box-shadow:0 10px 24px rgba(35,28,8,.25);}
+  .login-logo{width:78px; height:78px; border-radius:16px; background:#231C08; display:flex; align-items:center; justify-content:center; color:var(--yellow); font-weight:800; font-size:28px; margin-bottom:18px; box-shadow:0 10px 24px rgba(35,28,8,.25); overflow:hidden; padding:6px;}
+  .login-logo img{width:100%; height:100%; object-fit:contain;}
   .login-title{font-size:19px; font-weight:800;}
   .login-sub{font-size:12.5px; color:var(--muted); margin-top:4px; margin-bottom:26px; text-align:center;}
   .login-wrap .field{width:100%;}
@@ -448,7 +450,7 @@
   <!-- ============ LOGIN SCREEN ============ -->
   <div class="screen active" id="screen-login" style="display:flex; flex-direction:column;">
     <div class="login-wrap">
-      <div class="login-logo">PD</div>
+      <div class="login-logo"><img src="logo.png" alt="Pakka Doodhwala"></div>
       <div class="login-title">Pakka Doodhwala</div>
       <div class="login-sub">Admin Console &middot; Manage orders, delivery &amp; products</div>
       <div class="field">
@@ -474,7 +476,7 @@
   <div class="topbar" id="topbar" style="display:none;">
     <div class="topbar-row">
       <div class="brand">
-        <div class="brand-icon">PD</div>
+        <div class="brand-icon"><img src="logo.png" alt="Pakka Doodhwala"></div>
         <div class="brand-text">
           <div class="brand-title" id="topbarTitle">Dashboard</div>
           <div class="brand-sub"><span class="dot"></span><span id="topbarSub">All systems live</span></div>
