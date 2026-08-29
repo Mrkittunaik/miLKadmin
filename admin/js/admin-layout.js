@@ -137,16 +137,18 @@ function renderLayout(pageTitle){
     if(typeof logoutAdmin === 'function') logoutAdmin();
   });
 
-  // Mobile sidebar toggle
+  // Mobile sidebar toggle (locks background scroll while open)
   const sidebar = document.getElementById('sidebar');
   const overlay = document.getElementById('sidebarOverlay');
   document.getElementById('menuToggle').addEventListener('click', ()=>{
     sidebar.classList.add('open');
     overlay.classList.add('show');
+    document.body.style.overflow = 'hidden';
   });
   overlay.addEventListener('click', ()=>{
     sidebar.classList.remove('open');
     overlay.classList.remove('show');
+    document.body.style.overflow = '';
   });
 
   // ---- Bottom nav clicks (tap animation; navigation itself is
@@ -158,7 +160,7 @@ function renderLayout(pageTitle){
     });
   });
 
-  // ---- More sheet open/close ----
+  // ---- More sheet open/close (locks background scroll while open) ----
   const moreBtn = document.getElementById('bnavMoreBtn');
   const moreSheet = document.getElementById('moreSheet');
   const moreBackdrop = document.getElementById('moreSheetBackdrop');
@@ -166,10 +168,12 @@ function renderLayout(pageTitle){
   function openMoreSheet(){
     moreBackdrop.classList.add('show');
     moreSheet.classList.add('show');
+    document.body.style.overflow = 'hidden';
   }
   function closeMoreSheet(){
     moreBackdrop.classList.remove('show');
     moreSheet.classList.remove('show');
+    document.body.style.overflow = '';
   }
 
   moreBtn.addEventListener('click', ()=>{
@@ -178,6 +182,9 @@ function renderLayout(pageTitle){
     openMoreSheet();
   });
   moreBackdrop.addEventListener('click', closeMoreSheet);
+  document.addEventListener('keydown', (e)=>{
+    if(e.key === 'Escape' && moreSheet.classList.contains('show')) closeMoreSheet();
+  });
 
   document.querySelectorAll('.more-sheet-item[data-href]').forEach(el=>{
     el.addEventListener('click', ()=>{
