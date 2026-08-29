@@ -1,3 +1,0 @@
-/* Users page mostly reuses shared table/search styles */
-.user-avatar-cell{display:flex; align-items:center; gap:10px;}
-.user-avatar-sm{width:32px; height:32px; border-radius:50%; background:var(--card-hi); display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:800; color:var(--green-dim); flex-shrink:0;}
