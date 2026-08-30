@@ -510,6 +510,7 @@
   .login-wrap .field{width:100%;}
   .login-wrap .btn-primary{width:100%;}
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
 <div id="app">
@@ -778,8 +779,13 @@
   <div class="screen" id="screen-plans">
     <div class="section-head" style="margin-top:2px;">
       <div class="section-title">Subscription Plans</div>
-      <div class="section-link" id="customPlanBtn">+ Custom Plan</div>
+      <div style="display:flex; gap:12px; align-items:center;">
+        <div class="section-link" id="importPlansBtn">⬆ Import Excel</div>
+        <div class="section-link" id="customPlanBtn">+ Custom Plan</div>
+      </div>
     </div>
+    <input type="file" id="planExcelInput" accept=".xlsx,.xls,.csv" style="display:none;">
+    <div id="planImportSummary" style="display:none; font-size:11.5px; line-height:1.6; background:var(--card-hi); border:1px dashed var(--line); border-radius:8px; padding:10px 12px; margin-bottom:12px;"></div>
     <div id="plansList"></div>
     <div style="height:70px;"></div>
     <button class="fab-add" id="addPlanFab">
@@ -1201,6 +1207,13 @@
     {name:'Kittu Nagar & Model Town', color:'#4CAF6D', areas:['Kittu Nagar','Model Town']},
     {name:'Civil Lines & Sadar Bazaar', color:'#3B82C4', areas:['Civil Lines','Sadar Bazaar']}
   ];
+  function mapUrl(address){
+    return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(address);
+  }
+  function mapLinkHtml(address){
+    if(!address) return '';
+    return `<a href="${mapUrl(address)}" target="_blank" rel="noopener" style="display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:700; color:var(--green-dim); margin-top:4px; text-decoration:none;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 21s7-6.5 7-12a7 7 0 1 0-14 0c0 5.5 7 12 7 12z"/><circle cx="12" cy="9" r="2.5"/></svg>${address}</a>`;
+  }
   function areaOf(address){
     const found = zoneDefs.flatMap(z=>z.areas).find(a=>address.includes(a));
     return found || 'Unassigned';
@@ -1478,6 +1491,7 @@
       <div style="font-weight:800; font-size:13.5px;">${o.customer}</div>
       <div style="font-size:11.5px; color:var(--muted); margin-top:3px;">${o.phone}</div>
       <div style="font-size:11.5px; color:var(--muted); margin-top:3px;">${o.address}</div>
+      ${mapLinkHtml(o.address)}
     `;
     $('#orderItemsInfo').innerHTML = o.items.map(i=>`
       <div style="display:flex; justify-content:space-between; font-size:12.5px; padding:5px 0;">
@@ -1825,15 +1839,36 @@
   /* ============================================================
      USERS
      ============================================================ */
+  // finds this user's active subscription + resolved plan (preset or custom), and their
+  // delivered-order count, so plan changes made in Plans management reflect instantly here
+  function userPlanInfo(u){
+    const sub = subscriptions.find(s=>s.customer.trim().toLowerCase()===u.name.trim().toLowerCase() && s.active);
+    const plan = sub && sub.planId ? plans.find(p=>p.id===sub.planId) : null;
+    const delivered = orders.filter(o=>o.customer===u.name && o.status==='delivered').length;
+    return {
+      sub, plan,
+      planLabel: plan ? plan.name : (sub && sub.custom ? 'Custom Plan' : null),
+      qtyLabel: plan ? qtyLabel[plan.qty] : null,
+      delivered,
+      source: sub ? (sub.imported ? 'Imported' : 'Web App') : null
+    };
+  }
+
   function buildUserCard(u){
     const div = document.createElement('div');
     div.className = 'list-card user-card';
+    const info = userPlanInfo(u);
     div.innerHTML = `
       <div class="user-avatar">${initials(u.name)}</div>
       <div class="user-info">
         <div class="user-name">${u.name}</div>
         <div class="user-meta">${u.phone} &middot; Joined ${u.joined}</div>
-        <div class="user-orders">${u.orders} orders placed</div>
+        <div class="user-orders">${u.orders} orders placed &middot; ${info.delivered} delivered</div>
+        ${info.planLabel ? `<div style="margin-top:4px; display:flex; gap:5px; flex-wrap:wrap;">
+            <span class="plan-tag" style="font-size:9.5px; padding:2px 7px;">${info.planLabel}</span>
+            ${info.qtyLabel ? `<span class="plan-tag" style="font-size:9.5px; padding:2px 7px;">${info.qtyLabel}/day</span>` : ''}
+            <span class="plan-tag" style="font-size:9.5px; padding:2px 7px; opacity:.75;">${info.source}</span>
+          </div>` : ''}
       </div>
       ${u.status==='blocked' ? '<div class="db-status rejected">blocked</div>' : (u.status==='new' ? '<div class="db-status pending">new</div>' : '')}
     `;
@@ -1868,6 +1903,7 @@
     if(!u) return;
     $('#userSheetTitle').textContent = u.name;
     const userOrders = orders.filter(o=>o.customer===u.name);
+    const info = userPlanInfo(u);
     $('#userSheetBody').innerHTML = `
       <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">
         <div class="user-avatar" style="width:56px;height:56px;font-size:18px;">${initials(u.name)}</div>
@@ -1878,8 +1914,23 @@
       </div>
       <div class="field-row">
         <div class="field"><label>Total Orders</label><input type="text" value="${u.orders}" readonly></div>
-        <div class="field"><label>Joined</label><input type="text" value="${u.joined}" readonly></div>
+        <div class="field"><label>Delivered</label><input type="text" value="${info.delivered}" readonly></div>
       </div>
+      <div class="field-row">
+        <div class="field"><label>Joined</label><input type="text" value="${u.joined}" readonly></div>
+        <div class="field"><label>Source</label><input type="text" value="${info.source||'—'}" readonly></div>
+      </div>
+      ${info.plan || info.sub ? `
+      <div class="field"><label>Active Plan</label>
+        <div class="list-card" style="margin-bottom:2px;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <b style="font-size:12.5px;">${info.planLabel}</b>
+            ${info.qtyLabel ? `<span class="plan-tag" style="font-size:9.5px;">${info.qtyLabel}/day</span>` : ''}
+          </div>
+          ${info.plan ? `<div style="font-size:11.5px; color:var(--muted); margin-top:4px;">₹${info.plan.price} &middot; ${durLabel[info.plan.duration]} &middot; ${info.plan.slot==='morning'?'Morning':'Evening'} slot</div>` : ''}
+          ${info.sub && info.sub.address ? mapLinkHtml(info.sub.address) : ''}
+        </div>
+      </div>` : `<div class="field"><label>Active Plan</label><div style="font-size:12px; color:var(--muted);">No active subscription plan.</div></div>`}
       <div class="field"><label>Recent Orders</label></div>
       ${userOrders.length ? userOrders.map(o=>`<div class="list-card" style="margin-bottom:8px;"><div style="display:flex; justify-content:space-between;"><b style="font-size:12.5px;">#${o.id}</b><span class="order-status ${o.status}">${statusLabel[o.status]}</span></div><div style="font-size:11.5px; color:var(--muted); margin-top:4px;">${o.date} &middot; ₹${o.total}</div></div>`).join('') : '<div style="font-size:12px; color:var(--muted);">No recent orders on this device.</div>'}
       <button class="btn-danger-outline" id="userBlockBtn" style="margin-top:6px;">${u.status==='blocked'?'Unblock User':'Block User'}</button>
@@ -2035,13 +2086,132 @@
     }
     closeSheet('#planSheetBackdrop');
     renderPlans();
+    renderUsers();
   });
 
   $('#planDeleteBtn') && $('#planDeleteBtn').addEventListener('click', ()=>{
     plans = plans.filter(p=>p.id!==editingPlanId);
+    subscriptions.forEach(s=>{ if(s.planId===editingPlanId) s.planId = null; });
     closeSheet('#planSheetBackdrop');
     showToast('Plan deleted');
     renderPlans();
+    renderUsers();
+  });
+
+  /* ============================================================
+     PLAN IMPORT FROM EXCEL
+     Accepted columns (case-insensitive, flexible aliases):
+       Plan Name / Name           -> plan name (required)
+       Duration                   -> weekly / monthly / 6 month / sixmonth
+       Qty / Quantity / Litres    -> 0.5 or half / 1 or one / 2 or two
+       Slot                       -> morning / evening
+       Price                      -> number
+       Customer (optional)        -> if present, also creates/updates that
+       Address (optional)            customer's subscription on this plan
+       Phone (optional)
+     Existing plans are matched by name (case-insensitive) and updated;
+     new names create new plans. Re-import is safe to run repeatedly.
+     ============================================================ */
+  function normDuration(v){
+    v = String(v||'').trim().toLowerCase();
+    if(v.includes('week')) return 'weekly';
+    if(v.includes('6') || v.includes('six')) return 'sixmonth';
+    if(v.includes('month')) return 'monthly';
+    return 'monthly';
+  }
+  function normQty(v){
+    v = String(v||'').trim().toLowerCase();
+    if(v==='0.5'||v==='.5'||v.includes('half')) return 'half';
+    if(v==='2'||v.includes('two')) return 'two';
+    return 'one';
+  }
+  function normSlot(v){
+    v = String(v||'').trim().toLowerCase();
+    return v.includes('even') ? 'evening' : 'morning';
+  }
+  function findCol(row, ...names){
+    const keys = Object.keys(row);
+    for(const n of names){
+      const k = keys.find(k=>k.trim().toLowerCase()===n);
+      if(k!==undefined && row[k]!==undefined && row[k]!=='') return row[k];
+    }
+    return undefined;
+  }
+
+  function importPlansFromRows(rows){
+    let created=0, updated=0, subsLinked=0, skipped=0;
+    rows.forEach(row=>{
+      const name = findCol(row,'plan name','name','plan');
+      if(!name){ skipped++; return; }
+      const duration = normDuration(findCol(row,'duration'));
+      const qty = normQty(findCol(row,'qty','quantity','litres','daily quantity'));
+      const slot = normSlot(findCol(row,'slot','delivery slot'));
+      const priceRaw = findCol(row,'price','plan price');
+      const price = priceRaw!==undefined ? Number(String(priceRaw).replace(/[^\d.]/g,'')) || 0 : 0;
+
+      let plan = plans.find(p=>p.name.trim().toLowerCase()===String(name).trim().toLowerCase());
+      if(plan){
+        plan.duration = duration; plan.qty = qty; plan.slot = slot; plan.price = price;
+        updated++;
+      } else {
+        plan = {id:'pl'+Date.now()+Math.floor(Math.random()*1000), name:String(name).trim(), duration, qty, slot, price, subs:0};
+        plans.unshift(plan);
+        created++;
+      }
+
+      // optional customer/address columns -> link an imported subscription + user
+      const customer = findCol(row,'customer','customer name','user','user name');
+      if(customer){
+        const address = findCol(row,'address','delivery address') || '';
+        const phone = findCol(row,'phone','mobile','phone number') || '';
+        let sub = subscriptions.find(s=>s.customer.trim().toLowerCase()===String(customer).trim().toLowerCase());
+        if(sub){
+          sub.planId = plan.id; sub.custom = null; sub.slot = slot;
+          if(address) sub.address = address;
+        } else {
+          sub = {id:'s'+Date.now()+Math.floor(Math.random()*1000), customer:String(customer).trim(), address:String(address), planId:plan.id, custom:null, slot, startDate:fmtDateKey(new Date()), active:true, imported:true};
+          subscriptions.push(sub);
+        }
+        let user = users.find(u=>u.name.trim().toLowerCase()===String(customer).trim().toLowerCase());
+        if(!user){
+          user = {id:'u'+Date.now()+Math.floor(Math.random()*1000), name:String(customer).trim(), phone:String(phone), joined:'Imported', orders:0, status:'active'};
+          users.push(user);
+        } else if(phone){
+          user.phone = String(phone);
+        }
+        subsLinked++;
+      }
+    });
+    // recompute subscriber counts per plan
+    plans.forEach(p=> p.subs = subscriptions.filter(s=>s.planId===p.id && s.active).length );
+    return {created, updated, subsLinked, skipped};
+  }
+
+  $('#importPlansBtn') && $('#importPlansBtn').addEventListener('click', ()=> $('#planExcelInput').click());
+  $('#planExcelInput') && $('#planExcelInput').addEventListener('change', (e)=>{
+    const file = e.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = (evt)=>{
+      try{
+        const wb = XLSX.read(evt.target.result, {type:'array'});
+        const sheet = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(sheet, {defval:''});
+        if(!rows.length){ showToast('No rows found in file'); return; }
+        const res = importPlansFromRows(rows);
+        renderPlans();
+        renderUsers();
+        const summary = $('#planImportSummary');
+        summary.style.display = 'block';
+        summary.innerHTML = `<b>Import complete:</b> ${res.created} plan(s) created, ${res.updated} updated${res.subsLinked?`, ${res.subsLinked} customer subscription(s) linked`:''}${res.skipped?`, ${res.skipped} row(s) skipped (no plan name)`:''}.`;
+        showToast('Excel imported — plans updated');
+      } catch(err){
+        showToast('Could not read file — check format');
+        console.error(err);
+      }
+      e.target.value = '';
+    };
+    reader.readAsArrayBuffer(file);
   });
 
   /* ============================================================
