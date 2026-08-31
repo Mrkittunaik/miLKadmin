@@ -26,7 +26,7 @@
     --nav-h:76px;
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
-  html,body{height:100%;}
+  html,body{height:100%; overscroll-behavior:none; overflow:hidden; touch-action:pan-y; -webkit-overflow-scrolling: touch;}
   body{
     margin:0; background:var(--bg); color:var(--ink);
     font-family:'Poppins','Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
@@ -37,7 +37,7 @@
     display:flex; flex-direction:column; height:100vh; height:100dvh;
     max-width:480px; margin:0 auto; position:relative; overflow:hidden;
     box-shadow:0 0 50px rgba(43,36,16,.08);
-    background:var(--bg);
+    background:var(--bg); overscroll-behavior:none;
   }
 
   /* ---------- TOP BAR ---------- */
@@ -92,7 +92,7 @@
 
   /* ---------- SCREEN TRANSITIONS ---------- */
   .screen{
-    flex:1; overflow-y:auto; padding:18px 18px calc(var(--nav-h) + 20px); -webkit-overflow-scrolling:touch;
+    flex:1; overflow-y:auto; padding:18px 18px calc(var(--nav-h) + 20px); -webkit-overflow-scrolling:touch; overscroll-behavior-y: contain;
     overscroll-behavior-y:contain; position:relative;
     display:none;
   }
@@ -1109,6 +1109,20 @@
 <script>
 (function(){
   "use strict";
+
+  // Belt-and-braces block on Chrome's native pull-to-refresh: if a touch
+  // starts while already scrolled to the very top and drags downward,
+  // swallow it instead of letting the browser reload the page.
+  (function killPullToRefresh(){
+    let startY = 0;
+    document.addEventListener('touchstart', (e)=>{ startY = e.touches[0].clientY; }, {passive:true});
+    document.addEventListener('touchmove', (e)=>{
+      const scroller = e.target.closest('.screen, .sheet');
+      const atTop = !scroller || scroller.scrollTop <= 0;
+      const draggingDown = e.touches[0].clientY - startY > 0;
+      if(atTop && draggingDown){ e.preventDefault(); }
+    }, {passive:false});
+  })();
 
   /* ============================================================
      DATA MODEL (in-memory demo store — replace with real API calls)
