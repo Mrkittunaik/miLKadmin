@@ -127,12 +127,62 @@
     return zoneDefs.find(z=>z.areas.some(a=>address.includes(a)))?.name || 'Unassigned';
   }
 
+  /* ---------- COUPONS ---------- */
+  let coupons = [
+    {id:'c1', code:'WELCOME50', type:'percent', value:50, minOrder:99, limit:1, used:212, expiry:'2026-12-31', desc:'50% off on your first order', active:true},
+    {id:'c2', code:'FLAT20', type:'flat', value:20, minOrder:199, limit:500, used:340, expiry:'2026-09-30', desc:'Flat ₹20 off on orders above ₹199', active:true},
+    {id:'c3', code:'MILK10', type:'percent', value:10, minOrder:0, limit:1000, used:88, expiry:'2026-10-15', desc:'10% off on all dairy products', active:true},
+    {id:'c4', code:'RAKHI100', type:'flat', value:100, minOrder:499, limit:200, used:200, expiry:'2026-08-30', desc:'Rakhi special flat ₹100 off', active:false}
+  ];
+
+  /* ---------- BANNERS ---------- */
+  let banners = [
+    {id:'bn1', title:'Monsoon Milk Fest', subtitle:'Flat 20% off on all dairy this week', color:'#FDC202', link:'coupons', active:true},
+    {id:'bn2', title:'Try our Fresh Paneer', subtitle:'Made daily, delivered before 7 AM', color:'#4CAF6D', link:'products', active:true},
+    {id:'bn3', title:'Subscribe & Save', subtitle:'Monthly plans starting ₹378/week', color:'#3B82C4', link:'plans', active:false}
+  ];
+
+  /* ---------- CATEGORIES ---------- */
+  let categories = [
+    {id:'cat1', key:'milk', name:'Milk', icon:'🥛', active:true},
+    {id:'cat2', key:'curd', name:'Curd & Paneer', icon:'🧀', active:true},
+    {id:'cat3', key:'ghee', name:'Ghee & Butter', icon:'🧈', active:true},
+    {id:'cat4', key:'bread', name:'Bread & Eggs', icon:'🍞', active:true}
+  ];
+
+  /* ---------- STAFF ---------- */
+  const roleLabel = {superadmin:'Super Admin', manager:'Manager', support:'Support'};
+  let staff = [
+    {id:'st1', name:'Rahul Kittu', contact:'admin@pakkadoodhwala.in', role:'superadmin', active:true},
+    {id:'st2', name:'Sneha Kulkarni', contact:'sneha@pakkadoodhwala.in', role:'manager', active:true},
+    {id:'st3', name:'Imran Shaikh', contact:'+91 98220 11223', role:'support', active:true},
+    {id:'st4', name:'Anjali Deshmukh', contact:'anjali@pakkadoodhwala.in', role:'manager', active:false}
+  ];
+
+  /* ---------- REPORTS ---------- */
+  const reportTypes = [
+    {id:'rep-sales', name:'Sales Report', desc:'All orders with amount, status and payment mode.'},
+    {id:'rep-inventory', name:'Inventory Report', desc:'Current stock levels across all products.'},
+    {id:'rep-delivery', name:'Delivery Report', desc:'Rider-wise delivery counts and ratings.'},
+    {id:'rep-subs', name:'Subscriptions Report', desc:'Active subscriptions with plan and schedule.'},
+    {id:'rep-coupons', name:'Coupon Usage Report', desc:'Redemption counts for every coupon.'}
+  ];
+  let reportHistory = [
+    {name:'Sales Report', date:'2 days ago', rows:412},
+    {name:'Delivery Report', date:'6 days ago', rows:1204}
+  ];
+
   let currentOrderFilter = 'all';
   let currentProdFilter = 'all';
   let currentDbFilter = 'all';
   let currentUserFilter = 'all';
   let editingProductId = null;
   let editingPlanId = null;
+  let editingCouponId = null;
+  let editingBannerId = null;
+  let editingCategoryId = null;
+  let editingStaffId = null;
+  let currentCouponFilter = 'all';
   let activeOrderId = null;
   let activeDbId = null;
   let activeUserId = null;
@@ -186,7 +236,13 @@
       plans:['Subscription Plans','Weekly, monthly & custom'],
       calendar:['Delivery Calendar','Daily delivery schedule'],
       zones:['Delivery Zones','Auto-clustered routes'],
-      more:['More','Settings & tools']
+      more:['More','Settings & tools'],
+      coupons:['Coupons & Offers','Discounts and promotions'],
+      banners:['Home Banners','Customer app home screen'],
+      categories:['Categories','Product category management'],
+      payments:['Payments & Payouts','Settlements and rider payouts'],
+      reports:['Reports & Exports','Download business reports'],
+      staff:['Staff & Roles','Admin team & permissions']
     };
     if(titles[screenName]){
       $('#topbarTitle').textContent = titles[screenName][0];
@@ -208,7 +264,7 @@
   $all('[data-goto]').forEach(el=>{
     el.addEventListener('click', ()=>{
       const screenName = el.dataset.goto;
-      const knownScreens = ['dashboard','orders','products','delivery','users','analytics','plans','calendar','zones','more'];
+      const knownScreens = ['dashboard','orders','products','delivery','users','analytics','plans','calendar','zones','more','coupons','banners','categories','payments','reports','staff'];
       if(knownScreens.includes(screenName)){
         goto(screenName);
         if(el.dataset.filter){
@@ -237,13 +293,7 @@
 
   function openGenericSheet(name){
     const map = {
-      coupons: ['Coupons & Offers', 'Create and manage discount codes, cashback offers and festival promotions. Active coupons: WELCOME50, FLAT20, MILK10.'],
-      banners: ['Home Banners', 'Upload and reorder promotional banners shown on the customer app home screen.'],
-      categories: ['Categories', 'Manage product categories: Milk, Curd & Paneer, Ghee & Butter, Bread & Eggs. Add new categories or reorder them.'],
-      'delivery-zones': ['Delivery Zones', 'Define serviceable pin codes and delivery hub boundaries: Kittu Nagar, Model Town, Civil Lines, Sadar Bazaar.'],
-      payments: ['Payments & Payouts', 'View settlement reports and configure rider payout schedules. Next payout run: Friday 6 PM.'],
-      reports: ['Reports & Exports', 'Export sales, inventory and delivery reports as CSV. Last export: 2 days ago.'],
-      staff: ['Staff & Roles', 'Manage admin team members and their permission levels (Super Admin, Manager, Support).']
+      'delivery-zones': ['Delivery Zones', 'Define serviceable pin codes and delivery hub boundaries: Kittu Nagar, Model Town, Civil Lines, Sadar Bazaar.']
     };
     const [title, body] = map[name] || ['Section', 'This section is under construction.'];
     $('#genericSheetTitle').textContent = title;
@@ -915,6 +965,12 @@
     renderPlans();
     renderCalendar();
     renderZones();
+    renderCoupons();
+    renderBanners();
+    renderCategories();
+    renderStaff();
+    renderPayments();
+    renderReports();
     updateNavBadges();
   }
 
@@ -1002,6 +1058,390 @@
     renderPlans();
     renderUsers();
   });
+
+  /* ============================================================
+     COUPONS & OFFERS
+     ============================================================ */
+  function couponIsExpired(c){ return new Date(c.expiry) < new Date(); }
+
+  function renderCoupons(){
+    const list = $('#couponsList');
+    if(!list) return;
+    $('#couponCountLabel') && ($('#couponCountLabel').textContent = coupons.length ? `(${coupons.length})` : '');
+    const filtered = coupons.filter(c=>{
+      if(currentCouponFilter==='active') return c.active && !couponIsExpired(c);
+      if(currentCouponFilter==='expired') return couponIsExpired(c);
+      return true;
+    });
+    if(!filtered.length){
+      list.innerHTML = `<div style="text-align:center; color:var(--muted); font-size:12.5px; padding:30px 0;">No coupons in this view.</div>`;
+      return;
+    }
+    list.innerHTML = filtered.map(c=>{
+      const expired = couponIsExpired(c);
+      const pct = c.limit ? Math.min(100, Math.round((c.used/c.limit)*100)) : 0;
+      return `
+      <div class="plan-card" data-coupon="${c.id}">
+        <div class="plan-top">
+          <div class="plan-name" style="font-family:monospace; letter-spacing:.5px;">${c.code}</div>
+          <div class="plan-dur ${expired?'sixmonth':'monthly'}">${expired ? 'Expired' : (c.active ? 'Active' : 'Paused')}</div>
+        </div>
+        <div style="font-size:12px; color:var(--muted); margin:4px 0 8px;">${c.desc || ''}</div>
+        <div class="plan-slot-tags">
+          <div class="plan-tag">${c.type==='percent' ? c.value+'% off' : '₹'+c.value+' off'}</div>
+          ${c.minOrder ? `<div class="plan-tag">Min ₹${c.minOrder}</div>` : ''}
+          <div class="plan-tag">Exp ${c.expiry}</div>
+        </div>
+        <div class="plan-bottom">
+          <div class="plan-price" style="font-size:12.5px;">${c.used}/${c.limit} used</div>
+          <div class="plan-subs">${pct}%</div>
+        </div>
+      </div>`;
+    }).join('');
+    $all('.plan-card[data-coupon]').forEach(card=>{
+      card.addEventListener('click', ()=>openCouponSheet(card.dataset.coupon));
+    });
+  }
+
+  $all('#couponChips .chip').forEach(chip=>{
+    chip.addEventListener('click', ()=>{
+      currentCouponFilter = chip.dataset.cstatus;
+      $all('#couponChips .chip').forEach(c=>c.classList.toggle('active', c===chip));
+      renderCoupons();
+    });
+  });
+
+  function openCouponSheet(id){
+    editingCouponId = id || null;
+    const c = id ? coupons.find(x=>x.id===id) : null;
+    $('#couponSheetTitle').textContent = c ? 'Edit Coupon' : 'Create Coupon';
+    $('#cpCode').value = c ? c.code : '';
+    $('#cpType').value = c ? c.type : 'percent';
+    $('#cpValue').value = c ? c.value : '';
+    $('#cpMinOrder').value = c ? c.minOrder : '';
+    $('#cpLimit').value = c ? c.limit : '';
+    $('#cpExpiry').value = c ? c.expiry : '';
+    $('#cpDesc').value = c ? c.desc : '';
+    $('#cpActiveToggle').classList.toggle('on', c ? c.active : true);
+    $('#couponDeleteBtn').style.display = c ? 'block' : 'none';
+    openSheet('#couponSheetBackdrop');
+  }
+  $('#addCouponFab') && $('#addCouponFab').addEventListener('click', ()=>openCouponSheet(null));
+  $('#couponSheetCloseBtn') && $('#couponSheetCloseBtn').addEventListener('click', ()=>closeSheet('#couponSheetBackdrop'));
+  $('#couponSheetBackdrop') && $('#couponSheetBackdrop').addEventListener('click', e=>{ if(e.target===e.currentTarget) closeSheet('#couponSheetBackdrop'); });
+  $('#cpActiveToggle') && $('#cpActiveToggle').addEventListener('click', ()=>$('#cpActiveToggle').classList.toggle('on'));
+
+  $('#couponSaveBtn') && $('#couponSaveBtn').addEventListener('click', ()=>{
+    const code = $('#cpCode').value.trim().toUpperCase();
+    if(!code){ showToast('Enter a coupon code'); return; }
+    const data = {
+      code,
+      type: $('#cpType').value,
+      value: Number($('#cpValue').value) || 0,
+      minOrder: Number($('#cpMinOrder').value) || 0,
+      limit: Number($('#cpLimit').value) || 0,
+      expiry: $('#cpExpiry').value || '2026-12-31',
+      desc: $('#cpDesc').value.trim(),
+      active: $('#cpActiveToggle').classList.contains('on')
+    };
+    if(editingCouponId){
+      Object.assign(coupons.find(x=>x.id===editingCouponId), data);
+      showToast('Coupon updated');
+    } else {
+      coupons.unshift({id:'c'+Date.now(), used:0, ...data});
+      showToast('Coupon created');
+    }
+    closeSheet('#couponSheetBackdrop');
+    renderCoupons();
+  });
+
+  $('#couponDeleteBtn') && $('#couponDeleteBtn').addEventListener('click', ()=>{
+    coupons = coupons.filter(c=>c.id!==editingCouponId);
+    closeSheet('#couponSheetBackdrop');
+    showToast('Coupon deleted');
+    renderCoupons();
+  });
+
+  /* ============================================================
+     HOME BANNERS
+     ============================================================ */
+  function renderBanners(){
+    const list = $('#bannersList');
+    if(!list) return;
+    $('#bannerCountLabel') && ($('#bannerCountLabel').textContent = banners.length ? `(${banners.length})` : '');
+    if(!banners.length){
+      list.innerHTML = `<div style="text-align:center; color:var(--muted); font-size:12.5px; padding:30px 0;">No banners yet. Tap + to add one.</div>`;
+      return;
+    }
+    list.innerHTML = banners.map((b,i)=>`
+      <div class="plan-card" data-banner="${b.id}" style="border-left:4px solid ${b.color};">
+        <div class="plan-top">
+          <div class="plan-name">${b.title}</div>
+          <div class="plan-dur ${b.active?'weekly':'sixmonth'}">${b.active?'Active':'Hidden'}</div>
+        </div>
+        <div style="font-size:12px; color:var(--muted); margin:4px 0 8px;">${b.subtitle || ''}</div>
+        <div class="plan-bottom">
+          <div class="plan-subs">Position ${i+1} · Links to ${b.link==='none'?'nothing':b.link}</div>
+        </div>
+      </div>`).join('');
+    $all('.plan-card[data-banner]').forEach(card=>{
+      card.addEventListener('click', ()=>openBannerSheet(card.dataset.banner));
+    });
+  }
+
+  function openBannerSheet(id){
+    editingBannerId = id || null;
+    const b = id ? banners.find(x=>x.id===id) : null;
+    $('#bannerSheetTitle').textContent = b ? 'Edit Banner' : 'Add Banner';
+    $('#bnTitle').value = b ? b.title : '';
+    $('#bnSubtitle').value = b ? b.subtitle : '';
+    $('#bnColor').value = b ? b.color : '#FDC202';
+    $('#bnLink').value = b ? b.link : 'coupons';
+    $('#bnActiveToggle').classList.toggle('on', b ? b.active : true);
+    $('#bannerDeleteBtn').style.display = b ? 'block' : 'none';
+    openSheet('#bannerSheetBackdrop');
+  }
+  $('#addBannerFab') && $('#addBannerFab').addEventListener('click', ()=>openBannerSheet(null));
+  $('#bannerSheetCloseBtn') && $('#bannerSheetCloseBtn').addEventListener('click', ()=>closeSheet('#bannerSheetBackdrop'));
+  $('#bannerSheetBackdrop') && $('#bannerSheetBackdrop').addEventListener('click', e=>{ if(e.target===e.currentTarget) closeSheet('#bannerSheetBackdrop'); });
+  $('#bnActiveToggle') && $('#bnActiveToggle').addEventListener('click', ()=>$('#bnActiveToggle').classList.toggle('on'));
+
+  $('#bannerSaveBtn') && $('#bannerSaveBtn').addEventListener('click', ()=>{
+    const title = $('#bnTitle').value.trim();
+    if(!title){ showToast('Enter a banner title'); return; }
+    const data = {
+      title,
+      subtitle: $('#bnSubtitle').value.trim(),
+      color: $('#bnColor').value,
+      link: $('#bnLink').value,
+      active: $('#bnActiveToggle').classList.contains('on')
+    };
+    if(editingBannerId){
+      Object.assign(banners.find(x=>x.id===editingBannerId), data);
+      showToast('Banner updated');
+    } else {
+      banners.push({id:'bn'+Date.now(), ...data});
+      showToast('Banner added');
+    }
+    closeSheet('#bannerSheetBackdrop');
+    renderBanners();
+  });
+
+  $('#bannerDeleteBtn') && $('#bannerDeleteBtn').addEventListener('click', ()=>{
+    banners = banners.filter(b=>b.id!==editingBannerId);
+    closeSheet('#bannerSheetBackdrop');
+    showToast('Banner deleted');
+    renderBanners();
+  });
+
+  /* ============================================================
+     CATEGORIES
+     ============================================================ */
+  function renderCategories(){
+    const list = $('#categoriesList');
+    if(!list) return;
+    $('#categoryCountLabel') && ($('#categoryCountLabel').textContent = categories.length ? `(${categories.length})` : '');
+    list.innerHTML = categories.map(c=>{
+      const count = products.filter(p=>p.category===c.key).length;
+      return `
+      <div class="plan-card" data-category="${c.id}">
+        <div class="plan-top">
+          <div class="plan-name">${c.icon || '📦'} ${c.name}</div>
+          <div class="plan-dur ${c.active?'weekly':'sixmonth'}">${c.active?'Visible':'Hidden'}</div>
+        </div>
+        <div class="plan-bottom">
+          <div class="plan-subs">${count} product${count===1?'':'s'}</div>
+        </div>
+      </div>`;
+    }).join('');
+    $all('.plan-card[data-category]').forEach(card=>{
+      card.addEventListener('click', ()=>openCategorySheet(card.dataset.category));
+    });
+  }
+
+  function openCategorySheet(id){
+    editingCategoryId = id || null;
+    const c = id ? categories.find(x=>x.id===id) : null;
+    $('#categorySheetTitle').textContent = c ? 'Edit Category' : 'Add Category';
+    $('#ctName').value = c ? c.name : '';
+    $('#ctIcon').value = c ? c.icon : '';
+    $('#ctActiveToggle').classList.toggle('on', c ? c.active : true);
+    $('#categoryDeleteBtn').style.display = c ? 'block' : 'none';
+    openSheet('#categorySheetBackdrop');
+  }
+  $('#addCategoryFab') && $('#addCategoryFab').addEventListener('click', ()=>openCategorySheet(null));
+  $('#categorySheetCloseBtn') && $('#categorySheetCloseBtn').addEventListener('click', ()=>closeSheet('#categorySheetBackdrop'));
+  $('#categorySheetBackdrop') && $('#categorySheetBackdrop').addEventListener('click', e=>{ if(e.target===e.currentTarget) closeSheet('#categorySheetBackdrop'); });
+  $('#ctActiveToggle') && $('#ctActiveToggle').addEventListener('click', ()=>$('#ctActiveToggle').classList.toggle('on'));
+
+  $('#categorySaveBtn') && $('#categorySaveBtn').addEventListener('click', ()=>{
+    const name = $('#ctName').value.trim();
+    if(!name){ showToast('Enter a category name'); return; }
+    const data = {
+      name,
+      icon: $('#ctIcon').value.trim(),
+      active: $('#ctActiveToggle').classList.contains('on')
+    };
+    if(editingCategoryId){
+      Object.assign(categories.find(x=>x.id===editingCategoryId), data);
+      showToast('Category updated');
+    } else {
+      const key = name.toLowerCase().replace(/[^a-z0-9]+/g,'-');
+      categories.push({id:'cat'+Date.now(), key, ...data});
+      showToast('Category added');
+    }
+    closeSheet('#categorySheetBackdrop');
+    renderCategories();
+  });
+
+  $('#categoryDeleteBtn') && $('#categoryDeleteBtn').addEventListener('click', ()=>{
+    categories = categories.filter(c=>c.id!==editingCategoryId);
+    closeSheet('#categorySheetBackdrop');
+    showToast('Category deleted');
+    renderCategories();
+  });
+
+  /* ============================================================
+     STAFF & ROLES
+     ============================================================ */
+  function renderStaff(){
+    const list = $('#staffList');
+    if(!list) return;
+    $('#staffCountLabel') && ($('#staffCountLabel').textContent = staff.length ? `(${staff.length})` : '');
+    list.innerHTML = staff.map(s=>`
+      <div class="plan-card" data-staff="${s.id}">
+        <div class="plan-top">
+          <div class="plan-name">${s.name}</div>
+          <div class="plan-dur ${s.role==='superadmin'?'sixmonth':s.role==='manager'?'monthly':'weekly'}">${roleLabel[s.role]}</div>
+        </div>
+        <div style="font-size:12px; color:var(--muted); margin:4px 0 0;">${s.contact}</div>
+        <div class="plan-bottom">
+          <div class="plan-subs">${s.active ? 'Active' : 'Deactivated'}</div>
+        </div>
+      </div>`).join('');
+    $all('.plan-card[data-staff]').forEach(card=>{
+      card.addEventListener('click', ()=>openStaffSheet(card.dataset.staff));
+    });
+  }
+
+  function openStaffSheet(id){
+    editingStaffId = id || null;
+    const s = id ? staff.find(x=>x.id===id) : null;
+    $('#staffSheetTitle').textContent = s ? 'Edit Staff Member' : 'Add Staff Member';
+    $('#stName').value = s ? s.name : '';
+    $('#stContact').value = s ? s.contact : '';
+    $('#stRole').value = s ? s.role : 'manager';
+    $('#stActiveToggle').classList.toggle('on', s ? s.active : true);
+    $('#staffDeleteBtn').style.display = s ? 'block' : 'none';
+    openSheet('#staffSheetBackdrop');
+  }
+  $('#addStaffFab') && $('#addStaffFab').addEventListener('click', ()=>openStaffSheet(null));
+  $('#staffSheetCloseBtn') && $('#staffSheetCloseBtn').addEventListener('click', ()=>closeSheet('#staffSheetBackdrop'));
+  $('#staffSheetBackdrop') && $('#staffSheetBackdrop').addEventListener('click', e=>{ if(e.target===e.currentTarget) closeSheet('#staffSheetBackdrop'); });
+  $('#stActiveToggle') && $('#stActiveToggle').addEventListener('click', ()=>$('#stActiveToggle').classList.toggle('on'));
+
+  $('#staffSaveBtn') && $('#staffSaveBtn').addEventListener('click', ()=>{
+    const name = $('#stName').value.trim();
+    if(!name){ showToast('Enter a name'); return; }
+    const data = {
+      name,
+      contact: $('#stContact').value.trim(),
+      role: $('#stRole').value,
+      active: $('#stActiveToggle').classList.contains('on')
+    };
+    if(editingStaffId){
+      Object.assign(staff.find(x=>x.id===editingStaffId), data);
+      showToast('Staff member updated');
+    } else {
+      staff.push({id:'st'+Date.now(), ...data});
+      showToast('Staff member added');
+    }
+    closeSheet('#staffSheetBackdrop');
+    renderStaff();
+  });
+
+  $('#staffDeleteBtn') && $('#staffDeleteBtn').addEventListener('click', ()=>{
+    staff = staff.filter(s=>s.id!==editingStaffId);
+    closeSheet('#staffSheetBackdrop');
+    showToast('Staff member removed');
+    renderStaff();
+  });
+
+  /* ============================================================
+     PAYMENTS & PAYOUTS
+     ============================================================ */
+  function renderPayments(){
+    const summary = $('#paymentsSummary');
+    const list = $('#payoutsList');
+    if(!summary || !list) return;
+    const delivered = orders.filter(o=>o.status==='delivered');
+    const grossRevenue = delivered.reduce((sum,o)=>sum+(o.total||0),0);
+    const totalRiderPayout = deliveryBoys.filter(d=>d.status==='approved').reduce((s,d)=>s+d.deliveries*15,0);
+    summary.innerHTML = `
+      <div class="cal-summary-chip"><b>₹${grossRevenue}</b><span>REVENUE</span></div>
+      <div class="cal-summary-chip"><b>${delivered.length}</b><span>DELIVERED</span></div>
+      <div class="cal-summary-chip"><b>₹${totalRiderPayout}</b><span>PAYOUTS</span></div>
+    `;
+    const approved = deliveryBoys.filter(d=>d.status==='approved');
+    if(!approved.length){
+      list.innerHTML = `<div style="text-align:center; color:var(--muted); font-size:12.5px; padding:20px 0;">No approved riders yet.</div>`;
+      return;
+    }
+    list.innerHTML = approved.map(d=>{
+      const payout = d.deliveries * 15; // ₹15 per delivery, demo rate
+      return `
+      <div class="plan-card">
+        <div class="plan-top">
+          <div class="plan-name">${d.name}</div>
+          <div class="plan-price" style="font-size:15px;">₹${payout}</div>
+        </div>
+        <div style="font-size:12px; color:var(--muted); margin-top:2px;">${d.deliveries} deliveries · ${d.area}</div>
+      </div>`;
+    }).join('');
+  }
+
+  $('#runPayoutBtn') && $('#runPayoutBtn').addEventListener('click', ()=>{
+    showToast('Payout run scheduled for Friday 6 PM');
+  });
+
+  /* ============================================================
+     REPORTS & EXPORTS
+     ============================================================ */
+  function reportRowCount(id){
+    if(id==='rep-sales') return orders.length;
+    if(id==='rep-inventory') return products.length;
+    if(id==='rep-delivery') return deliveryBoys.filter(d=>d.status==='approved').length;
+    if(id==='rep-subs') return subscriptions.filter(s=>s.active).length;
+    if(id==='rep-coupons') return coupons.length;
+    return 0;
+  }
+
+  function renderReports(){
+    const list = $('#reportsList');
+    const history = $('#reportsHistory');
+    if(!list || !history) return;
+    list.innerHTML = reportTypes.map(r=>`
+      <div class="settings-row" data-report="${r.id}">
+        <div class="left">
+          <div class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg></div>
+          <div>${r.name}<div style="font-size:11px; color:var(--muted); font-weight:500; margin-top:2px;">${r.desc}</div></div>
+        </div>
+        <span>${reportRowCount(r.id)} rows</span>
+      </div>`).join('');
+    $all('.settings-row[data-report]').forEach(row=>{
+      row.addEventListener('click', ()=>{
+        const r = reportTypes.find(x=>x.id===row.dataset.report);
+        reportHistory.unshift({name:r.name, date:'just now', rows:reportRowCount(r.id)});
+        showToast(r.name + ' exported as CSV');
+        renderReports();
+      });
+    });
+    history.innerHTML = reportHistory.slice(0,6).map(h=>`
+      <div class="settings-row" style="cursor:default;">
+        <div class="left"><div class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 3v12m0 0-4-4m4 4 4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg></div>${h.name}</div>
+        <span style="color:var(--muted); font-weight:500;">${h.date} · ${h.rows} rows</span>
+      </div>`).join('');
+  }
 
   /* ============================================================
      PLAN IMPORT FROM EXCEL
