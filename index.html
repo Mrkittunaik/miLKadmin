@@ -329,6 +329,89 @@
     <div style="height:70px;"></div>
   </div>
 
+  <!-- ============ SCREEN: COUPONS & OFFERS ============ -->
+  <div class="screen" id="screen-coupons">
+    <div class="section-head" style="margin-top:2px;">
+      <div class="section-title">Coupons <span id="couponCountLabel"></span></div>
+      <div class="chip-row" id="couponChips" style="margin:0;">
+        <div class="chip active" data-cstatus="all">All</div>
+        <div class="chip" data-cstatus="active">Active</div>
+        <div class="chip" data-cstatus="expired">Expired</div>
+      </div>
+    </div>
+    <div id="couponsList"></div>
+    <div style="height:70px;"></div>
+    <button class="fab-add" id="addCouponFab">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+    </button>
+  </div>
+
+  <!-- ============ SCREEN: HOME BANNERS ============ -->
+  <div class="screen" id="screen-banners">
+    <div class="section-head" style="margin-top:2px;">
+      <div class="section-title">Home Banners <span id="bannerCountLabel"></span></div>
+    </div>
+    <div style="font-size:11.5px; color:var(--muted); line-height:1.5; margin-bottom:14px; padding:10px 12px; background:var(--card-hi); border:1px dashed var(--line); border-radius:5px;">
+      Drag to reorder. The first active banner shown here appears first on the customer app home screen.
+    </div>
+    <div id="bannersList"></div>
+    <div style="height:70px;"></div>
+    <button class="fab-add" id="addBannerFab">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+    </button>
+  </div>
+
+  <!-- ============ SCREEN: CATEGORIES ============ -->
+  <div class="screen" id="screen-categories">
+    <div class="section-head" style="margin-top:2px;">
+      <div class="section-title">Categories <span id="categoryCountLabel"></span></div>
+    </div>
+    <div id="categoriesList"></div>
+    <div style="height:70px;"></div>
+    <button class="fab-add" id="addCategoryFab">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+    </button>
+  </div>
+
+  <!-- ============ SCREEN: PAYMENTS & PAYOUTS ============ -->
+  <div class="screen" id="screen-payments">
+    <div class="section-head" style="margin-top:2px;">
+      <div class="section-title">Payments <span>overview</span></div>
+    </div>
+    <div id="paymentsSummary" class="cal-summary-row" style="margin-bottom:16px;"></div>
+    <div class="section-head">
+      <div class="section-title" style="font-size:14px;">Rider Payouts</div>
+      <div class="section-link" id="runPayoutBtn">Run Payout <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+    </div>
+    <div id="payoutsList"></div>
+    <div style="height:70px;"></div>
+  </div>
+
+  <!-- ============ SCREEN: REPORTS & EXPORTS ============ -->
+  <div class="screen" id="screen-reports">
+    <div class="section-head" style="margin-top:2px;">
+      <div class="section-title">Reports <span>&amp; exports</span></div>
+    </div>
+    <div id="reportsList"></div>
+    <div class="section-head">
+      <div class="section-title" style="font-size:14px;">Export History</div>
+    </div>
+    <div id="reportsHistory"></div>
+    <div style="height:70px;"></div>
+  </div>
+
+  <!-- ============ SCREEN: STAFF & ROLES ============ -->
+  <div class="screen" id="screen-staff">
+    <div class="section-head" style="margin-top:2px;">
+      <div class="section-title">Staff <span id="staffCountLabel"></span></div>
+    </div>
+    <div id="staffList"></div>
+    <div style="height:70px;"></div>
+    <button class="fab-add" id="addStaffFab">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+    </button>
+  </div>
+
   <!-- ============ SCREEN: MORE / ACCOUNT ============ -->
   <div class="screen" id="screen-more">
     <div class="account-header">
@@ -575,6 +658,148 @@
       <h3 id="userSheetTitle">User Details</h3>
       <div id="userSheetBody"></div>
       <button class="btn-secondary" id="userSheetCloseBtn">Close</button>
+    </div>
+  </div>
+
+  <!-- ============ SHEET: ADD/EDIT COUPON ============ -->
+  <div class="sheet-backdrop" id="couponSheetBackdrop">
+    <div class="sheet">
+      <div class="sheet-handle"></div>
+      <h3 id="couponSheetTitle">Create Coupon</h3>
+      <div class="field">
+        <label>Coupon Code</label>
+        <input type="text" id="cpCode" placeholder="e.g. WELCOME50" style="text-transform:uppercase;">
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Discount Type</label>
+          <select id="cpType">
+            <option value="percent">Percentage (%)</option>
+            <option value="flat">Flat (₹)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Discount Value</label>
+          <input type="number" id="cpValue" placeholder="e.g. 20">
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Min Order Value (₹)</label>
+          <input type="number" id="cpMinOrder" placeholder="e.g. 199">
+        </div>
+        <div class="field">
+          <label>Usage Limit</label>
+          <input type="number" id="cpLimit" placeholder="e.g. 500">
+        </div>
+      </div>
+      <div class="field">
+        <label>Expiry Date</label>
+        <input type="date" id="cpExpiry">
+      </div>
+      <div class="field">
+        <label>Description</label>
+        <textarea id="cpDesc" placeholder="Shown to customers in the offers list"></textarea>
+      </div>
+      <div class="settings-row" style="border:1px solid var(--line); border-radius:5px; margin-bottom:14px;">
+        <div class="left"><span>Active</span></div>
+        <div class="switch on" id="cpActiveToggle"></div>
+      </div>
+      <button class="btn-primary" id="couponSaveBtn">Save Coupon</button>
+      <button class="btn-danger-outline" id="couponDeleteBtn" style="display:none;">Delete Coupon</button>
+      <button class="btn-secondary" id="couponSheetCloseBtn">Cancel</button>
+    </div>
+  </div>
+
+  <!-- ============ SHEET: ADD/EDIT BANNER ============ -->
+  <div class="sheet-backdrop" id="bannerSheetBackdrop">
+    <div class="sheet">
+      <div class="sheet-handle"></div>
+      <h3 id="bannerSheetTitle">Add Banner</h3>
+      <div class="field">
+        <label>Banner Title</label>
+        <input type="text" id="bnTitle" placeholder="e.g. Monsoon Milk Fest">
+      </div>
+      <div class="field">
+        <label>Subtitle</label>
+        <input type="text" id="bnSubtitle" placeholder="e.g. Flat 20% off on all dairy">
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Background Color</label>
+          <input type="color" id="bnColor" value="#FDC202" style="height:40px; padding:4px;">
+        </div>
+        <div class="field">
+          <label>Links To</label>
+          <select id="bnLink">
+            <option value="coupons">Coupons &amp; Offers</option>
+            <option value="products">Products</option>
+            <option value="plans">Subscription Plans</option>
+            <option value="none">Nothing (informational)</option>
+          </select>
+        </div>
+      </div>
+      <div class="settings-row" style="border:1px solid var(--line); border-radius:5px; margin-bottom:14px;">
+        <div class="left"><span>Active</span></div>
+        <div class="switch on" id="bnActiveToggle"></div>
+      </div>
+      <button class="btn-primary" id="bannerSaveBtn">Save Banner</button>
+      <button class="btn-danger-outline" id="bannerDeleteBtn" style="display:none;">Delete Banner</button>
+      <button class="btn-secondary" id="bannerSheetCloseBtn">Cancel</button>
+    </div>
+  </div>
+
+  <!-- ============ SHEET: ADD/EDIT CATEGORY ============ -->
+  <div class="sheet-backdrop" id="categorySheetBackdrop">
+    <div class="sheet">
+      <div class="sheet-handle"></div>
+      <h3 id="categorySheetTitle">Add Category</h3>
+      <div class="field">
+        <label>Category Name</label>
+        <input type="text" id="ctName" placeholder="e.g. Bread &amp; Eggs">
+      </div>
+      <div class="field">
+        <label>Icon Emoji</label>
+        <input type="text" id="ctIcon" placeholder="e.g. 🥛" maxlength="4">
+      </div>
+      <div class="settings-row" style="border:1px solid var(--line); border-radius:5px; margin-bottom:14px;">
+        <div class="left"><span>Visible on customer app</span></div>
+        <div class="switch on" id="ctActiveToggle"></div>
+      </div>
+      <button class="btn-primary" id="categorySaveBtn">Save Category</button>
+      <button class="btn-danger-outline" id="categoryDeleteBtn" style="display:none;">Delete Category</button>
+      <button class="btn-secondary" id="categorySheetCloseBtn">Cancel</button>
+    </div>
+  </div>
+
+  <!-- ============ SHEET: ADD/EDIT STAFF ============ -->
+  <div class="sheet-backdrop" id="staffSheetBackdrop">
+    <div class="sheet">
+      <div class="sheet-handle"></div>
+      <h3 id="staffSheetTitle">Add Staff Member</h3>
+      <div class="field">
+        <label>Full Name</label>
+        <input type="text" id="stName" placeholder="e.g. Priya Nair">
+      </div>
+      <div class="field">
+        <label>Phone / Email</label>
+        <input type="text" id="stContact" placeholder="e.g. priya@pakkadoodhwala.in">
+      </div>
+      <div class="field">
+        <label>Role</label>
+        <select id="stRole">
+          <option value="superadmin">Super Admin</option>
+          <option value="manager" selected>Manager</option>
+          <option value="support">Support</option>
+        </select>
+      </div>
+      <div class="settings-row" style="border:1px solid var(--line); border-radius:5px; margin-bottom:14px;">
+        <div class="left"><span>Active</span></div>
+        <div class="switch on" id="stActiveToggle"></div>
+      </div>
+      <button class="btn-primary" id="staffSaveBtn">Save Staff Member</button>
+      <button class="btn-danger-outline" id="staffDeleteBtn" style="display:none;">Remove Staff Member</button>
+      <button class="btn-secondary" id="staffSheetCloseBtn">Cancel</button>
     </div>
   </div>
 
