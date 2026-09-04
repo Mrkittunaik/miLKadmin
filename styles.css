@@ -60,19 +60,34 @@
   .brand-sub .dot{width:6px; height:6px; border-radius:50%; background:var(--green); box-shadow:0 0 6px #4caf6d88;}
 
   .topbar-icons{display:flex; gap:10px; position:relative;}
+
+  /* Backdrop: tapping anywhere outside the card closes it */
+  .notif-overlay{
+    position:fixed; inset:0; z-index:49; background:transparent;
+    opacity:0; visibility:hidden; pointer-events:none; transition:opacity .15s, visibility .15s;
+  }
+  .notif-overlay.show{opacity:1; visibility:visible; pointer-events:auto;}
+
+  /* position:fixed + JS-computed top/right/max-height (see openNotifPanel in script.js) so the
+     card sits relative to the #app viewport instead of being clipped by .topbar/#app's
+     overflow:hidden. Width/height hug the content up to a cap; list scrolls internally and
+     the whole card is capped from below by the bottom nav bar. */
   .notif-panel{
-    position:absolute; top:46px; right:0; width:280px; max-height:360px; overflow-y:auto;
-    background:var(--card); border:1px solid var(--line); border-radius:12px;
+    position:fixed; width:auto; max-width:300px; min-width:220px;
+    display:flex; flex-direction:column;
+    background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
     box-shadow:0 10px 30px rgba(43,36,16,.18); z-index:50; opacity:0; visibility:hidden;
     transform:translateY(-6px); transition:opacity .15s, transform .15s, visibility .15s;
+    overflow:hidden;
   }
   .notif-panel.show{opacity:1; visibility:visible; transform:translateY(0);}
   .notif-panel-head{
     display:flex; justify-content:space-between; align-items:center; padding:12px 14px;
     font-size:12.5px; font-weight:800; color:var(--ink); border-bottom:1px solid var(--line);
-    position:sticky; top:0; background:var(--card);
+    flex-shrink:0; background:var(--card); border-radius:var(--radius) var(--radius) 0 0;
   }
   .notif-clear{font-size:10.5px; font-weight:700; color:var(--blue); cursor:pointer;}
+  .notif-list{overflow-y:auto; -webkit-overflow-scrolling:touch;}
   .notif-empty{padding:22px 14px; text-align:center; font-size:12px; color:var(--muted);}
   .notif-row{display:flex; gap:10px; padding:11px 14px; border-bottom:1px solid var(--line); cursor:pointer; align-items:flex-start;}
   .notif-row:last-child{border-bottom:none;}
