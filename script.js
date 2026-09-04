@@ -176,6 +176,7 @@
   let currentProdFilter = 'all';
   let currentDbFilter = 'all';
   let currentUserFilter = 'all';
+  let currentPmFilter = 'all';
   let editingProductId = null;
   let editingPlanId = null;
   let editingCouponId = null;
@@ -232,6 +233,7 @@
       products:['Products','Catalog management'],
       delivery:['Delivery Partners','Riders & approvals'],
       users:['Users','Customer accounts'],
+      paymgr:['Payment Manager','Subscriber billing & renewals'],
       analytics:['Analytics','Business insights'],
       plans:['Subscription Plans','Weekly, monthly & custom'],
       calendar:['Delivery Calendar','Daily delivery schedule'],
@@ -248,7 +250,7 @@
       $('#topbarTitle').textContent = titles[screenName][0];
       $('#topbarSub').textContent = titles[screenName][1];
     }
-    $('#searchRow').style.display = (screenName==='orders'||screenName==='products'||screenName==='users'||screenName==='delivery') ? 'flex' : 'none';
+    $('#searchRow').style.display = (screenName==='orders'||screenName==='products'||screenName==='users'||screenName==='delivery'||screenName==='paymgr') ? 'flex' : 'none';
     if(screenName==='calendar'){
       $('#calMonthView').style.display = 'block';
       $('#calDayView').style.display = 'none';
@@ -264,7 +266,7 @@
   $all('[data-goto]').forEach(el=>{
     el.addEventListener('click', ()=>{
       const screenName = el.dataset.goto;
-      const knownScreens = ['dashboard','orders','products','delivery','users','analytics','plans','calendar','zones','more','coupons','banners','categories','payments','reports','staff'];
+      const knownScreens = ['dashboard','orders','products','delivery','users','paymgr','analytics','plans','calendar','zones','more','coupons','banners','categories','payments','reports','staff'];
       if(knownScreens.includes(screenName)){
         goto(screenName);
         if(el.dataset.filter){
@@ -885,6 +887,29 @@
           ${info.plan ? `<div style="font-size:11.5px; color:var(--muted); margin-top:4px;">₹${info.plan.price} &middot; ${durLabel[info.plan.duration]} &middot; ${info.plan.slot==='morning'?'Morning':'Evening'} slot</div>` : ''}
           ${info.sub && info.sub.address ? mapLinkHtml(info.sub.address) : ''}
         </div>
+      </div>
+      <div class="field"><label>Payment &amp; Billing</label>
+        <div class="list-card" style="margin-bottom:2px;">
+          ${(()=>{
+            const status = subPaymentStatus(info.sub);
+            const meta = pmStatusMeta[status];
+            const start = new Date(info.sub.startDate);
+            const expiry = subExpiryDate(info.sub);
+            const price = subPrice(info.sub);
+            return `
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <b style="font-size:12.5px;">${price ? '₹'+price : 'Custom billing'}</b>
+                <span class="db-status ${meta.cls}" style="margin-top:0;">${meta.label}</span>
+              </div>
+              <div style="font-size:11.5px; color:var(--muted); margin-top:6px;">Started ${fmtDate(start)}</div>
+              <div style="font-size:11.5px; color:var(--muted); margin-top:2px;">${status==='expired' ? 'Ended' : 'Renews / ends'} ${fmtDate(expiry)}</div>
+            `;
+          })()}
+        </div>
+        <div style="display:flex; gap:8px; margin-top:8px;">
+          <button class="btn-secondary" id="userRenewBtn" style="flex:1;">Renew Plan</button>
+          <button class="btn-secondary" id="userReminderBtn" style="flex:1;">Send Reminder</button>
+        </div>
       </div>` : `<div class="field"><label>Active Plan</label><div style="font-size:12px; color:var(--muted);">No active subscription plan.</div></div>`}
       <div class="field"><label>Recent Orders</label></div>
       ${userOrders.length ? userOrders.map(o=>`<div class="list-card" style="margin-bottom:8px;"><div style="display:flex; justify-content:space-between;"><b style="font-size:12.5px;">#${o.id}</b><span class="order-status ${o.status}">${statusLabel[o.status]}</span></div><div style="font-size:11.5px; color:var(--muted); margin-top:4px;">${o.date} &middot; ₹${o.total}</div></div>`).join('') : '<div style="font-size:12px; color:var(--muted);">No recent orders on this device.</div>'}
@@ -897,9 +922,224 @@
       closeSheet('#userSheetBackdrop');
       renderUsers();
     });
+    const renewBtn = $('#userRenewBtn');
+    if(renewBtn) renewBtn.addEventListener('click', ()=>{
+      if(!info.sub) return;
+      info.sub.startDate = new Date().toISOString().slice(0,10);
+      showToast('Plan renewed — new billing cycle started');
+      closeSheet('#userSheetBackdrop');
+      renderUsers(); renderPaymentManager(); refreshNotifications();
+    });
+    const reminderBtn = $('#userReminderBtn');
+    if(reminderBtn) reminderBtn.addEventListener('click', ()=>{
+      showToast(`Payment reminder sent to ${u.name}`);
+    });
   }
   $('#userSheetCloseBtn').addEventListener('click', ()=>closeSheet('#userSheetBackdrop'));
   $('#userSheetBackdrop').addEventListener('click', e=>{ if(e.target===e.currentTarget) closeSheet('#userSheetBackdrop'); });
+
+  /* ============================================================
+     PAYMENT MANAGER — per-user plan billing, renewals, monthly totals
+     ============================================================ */
+  function subDurationDays(sub){
+    if(!sub) return 30;
+    const plan = sub.planId ? plans.find(p=>p.id===sub.planId) : null;
+    return plan ? durDays[plan.duration] : 30; // custom day-plans billed monthly by default
+  }
+  function subExpiryDate(sub){
+    const start = new Date(sub.startDate);
+    const exp = new Date(start);
+    exp.setDate(exp.getDate() + subDurationDays(sub));
+    return exp;
+  }
+  function daysBetween(a,b){ return Math.round((b.setHours(0,0,0,0) - a.setHours(0,0,0,0)) / 86400000); }
+  function subPaymentStatus(sub){
+    if(!sub || !sub.active) return 'none';
+    const today = new Date();
+    const exp = subExpiryDate(sub);
+    const diff = daysBetween(new Date(today), new Date(exp));
+    if(diff < 0) return 'expired';
+    if(diff <= 3) return 'expiring';
+    return 'active';
+  }
+  function subPrice(sub){
+    if(!sub) return 0;
+    const plan = sub.planId ? plans.find(p=>p.id===sub.planId) : null;
+    return plan ? plan.price : 0; // custom per-weekday plans are billed manually, no fixed price
+  }
+  function fmtDate(d){
+    return d.toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric'});
+  }
+  const pmStatusMeta = {
+    active:  {label:'Active',    cls:'approved'},
+    expiring:{label:'Expiring Soon', cls:'pending'},
+    expired: {label:'Completed', cls:'rejected'},
+    none:    {label:'No Plan',   cls:'suspended'}
+  };
+
+  // one row per user, resolving their subscription + plan + billing status
+  function paymentRecords(){
+    return users.map(u=>{
+      const sub = subscriptions.find(s=>s.customer.trim().toLowerCase()===u.name.trim().toLowerCase() && s.active);
+      const plan = sub && sub.planId ? plans.find(p=>p.id===sub.planId) : null;
+      const status = subPaymentStatus(sub);
+      return {
+        user: u, sub, plan, status,
+        price: subPrice(sub),
+        planLabel: plan ? plan.name : (sub && sub.custom ? 'Custom Plan' : null),
+        start: sub ? new Date(sub.startDate) : null,
+        expiry: sub ? subExpiryDate(sub) : null
+      };
+    });
+  }
+
+  // monthly totals: plans that started in the current calendar month count as this month's sales
+  function monthlyPaymentStats(){
+    const now = new Date();
+    const records = paymentRecords();
+    const thisMonth = records.filter(r=>r.start && r.start.getMonth()===now.getMonth() && r.start.getFullYear()===now.getFullYear());
+    const revenue = thisMonth.reduce((sum,r)=>sum + r.price, 0);
+    const activeTotal = records.filter(r=>r.status==='active' || r.status==='expiring').length;
+    const expiringCount = records.filter(r=>r.status==='expiring').length;
+    const expiredCount = records.filter(r=>r.status==='expired').length;
+    return {revenue, buyers: thisMonth.length, activeTotal, expiringCount, expiredCount, records};
+  }
+
+  function buildPaymentCard(r){
+    const div = document.createElement('div');
+    div.className = 'list-card user-card';
+    const meta = pmStatusMeta[r.status];
+    div.innerHTML = `
+      <div class="user-avatar">${initials(r.user.name)}</div>
+      <div class="user-info">
+        <div class="user-name">${r.user.name}</div>
+        <div class="user-meta">${r.user.phone}</div>
+        ${r.planLabel ? `
+          <div style="font-size:11.5px; color:var(--muted); margin-top:3px;">
+            ${r.planLabel}${r.price ? ` &middot; ₹${r.price}` : ''}
+          </div>
+          <div style="font-size:11px; color:var(--muted); margin-top:2px;">
+            ${r.start ? fmtDate(r.start) : '—'} → ${r.expiry ? fmtDate(r.expiry) : '—'}
+          </div>
+        ` : `<div style="font-size:11.5px; color:var(--muted); margin-top:3px;">No active subscription</div>`}
+      </div>
+      <div class="db-status ${meta.cls}">${meta.label}</div>
+    `;
+    div.addEventListener('click', ()=>openUserSheet(r.user.id));
+    return div;
+  }
+
+  function renderPaymentManager(){
+    const stats = monthlyPaymentStats();
+    $('#pmRevenueMonth').textContent = '₹' + stats.revenue.toLocaleString('en-IN');
+    $('#pmBuyersMonth').textContent = stats.buyers;
+    $('#pmActiveTotal').textContent = stats.activeTotal + ' active total';
+    $('#pmExpiringCount').textContent = stats.expiringCount;
+    $('#pmExpiredCount').textContent = stats.expiredCount;
+
+    let records = stats.records;
+    if(currentPmFilter !== 'all'){
+      records = records.filter(r=>r.status===currentPmFilter);
+    }
+    const list = $('#pmList');
+    list.innerHTML = '';
+    $('#pmCount').textContent = records.length;
+    if(records.length===0){
+      list.innerHTML = '<div class="empty-state"><div class="empty-state-title">No subscribers here</div><div class="empty-state-sub">Try a different filter</div></div>';
+      return;
+    }
+    records.forEach(r=>list.appendChild(buildPaymentCard(r)));
+  }
+
+  $all('#pmChips .chip').forEach(chip=>{
+    chip.addEventListener('click', ()=>{
+      $all('#pmChips .chip').forEach(c=>c.classList.remove('active'));
+      chip.classList.add('active');
+      currentPmFilter = chip.dataset.pmstatus;
+      renderPaymentManager();
+    });
+  });
+  $all('[data-pmfilter]').forEach(card=>{
+    card.addEventListener('click', ()=>{
+      goto('paymgr');
+      const status = card.dataset.pmfilter;
+      setTimeout(()=>{
+        $all('#pmChips .chip').forEach(c=>c.classList.toggle('active', c.dataset.pmstatus===status));
+        currentPmFilter = status;
+        renderPaymentManager();
+      }, 50);
+    });
+  });
+
+  /* ============================================================
+     NOTIFICATION CENTER — new users, expiring & completed plans
+     ============================================================ */
+  let notifReadAt = 0; // timestamp; notifications older than this are treated as read
+
+  function buildNotifications(){
+    const items = [];
+    users.filter(u=>u.status==='new').forEach(u=>{
+      items.push({icon:'👤', text:`${u.name} just signed up`, sub:`Joined ${u.joined}`, action:()=>openUserSheet(u.id), key:'new-'+u.id});
+    });
+    paymentRecords().forEach(r=>{
+      if(r.status==='expiring'){
+        const days = daysBetween(new Date(), new Date(r.expiry));
+        items.push({icon:'⏳', text:`${r.user.name}'s plan expires in ${days} day${days===1?'':'s'}`, sub:r.planLabel, action:()=>openUserSheet(r.user.id), key:'exp-'+r.user.id});
+      } else if(r.status==='expired'){
+        items.push({icon:'⛔', text:`${r.user.name}'s plan has ended — renew?`, sub:r.planLabel, action:()=>openUserSheet(r.user.id), key:'done-'+r.user.id});
+      }
+    });
+    return items;
+  }
+
+  function refreshNotifications(){
+    const items = buildNotifications();
+    const badge = $('#notifBadge');
+    const unread = notifReadAt ? 0 : items.length;
+    if(items.length){
+      badge.style.display = 'flex';
+      badge.textContent = items.length;
+    } else {
+      badge.style.display = 'none';
+    }
+    const list = $('#notifList');
+    if(!items.length){
+      list.innerHTML = '<div class="notif-empty">You\'re all caught up 🎉</div>';
+      return;
+    }
+    list.innerHTML = items.map(n=>`
+      <div class="notif-row" data-key="${n.key}">
+        <div class="notif-ic">${n.icon}</div>
+        <div class="notif-text">
+          <div class="notif-title">${n.text}</div>
+          ${n.sub ? `<div class="notif-sub">${n.sub}</div>` : ''}
+        </div>
+      </div>
+    `).join('');
+    $all('.notif-row').forEach((row,i)=>{
+      row.addEventListener('click', ()=>{
+        $('#notifPanel').classList.remove('show');
+        items[i].action();
+      });
+    });
+  }
+
+  $('#notifBtn').addEventListener('click', (e)=>{
+    e.stopPropagation();
+    $('#notifPanel').classList.toggle('show');
+  });
+  $('#notifClearBtn').addEventListener('click', (e)=>{
+    e.stopPropagation();
+    notifReadAt = Date.now();
+    $('#notifBadge').style.display = 'none';
+    showToast('Notifications cleared');
+  });
+  document.addEventListener('click', (e)=>{
+    const panel = $('#notifPanel');
+    if(panel.classList.contains('show') && !panel.contains(e.target) && e.target.id!=='notifBtn'){
+      panel.classList.remove('show');
+    }
+  });
 
   /* ============================================================
      ANALYTICS
@@ -961,6 +1201,8 @@
     renderProducts();
     renderDeliveryBoys();
     renderUsers();
+    renderPaymentManager();
+    refreshNotifications();
     renderAnalytics();
     renderPlans();
     renderCalendar();
@@ -1747,9 +1989,6 @@
   }
   $('#refreshBtn').addEventListener('click', doFullRefresh);
 
-  $('#notifBtn').addEventListener('click', ()=>{
-    showToast('3 new notifications');
-  });
   $('#logoutBtn').addEventListener('click', ()=>{
     clearSession();
     $('#topbar').style.display = 'none';
@@ -1783,6 +2022,11 @@
       });
     } else if(activeScreen.id === 'screen-delivery'){
       $all('#dbList .db-card').forEach(card=>{
+        const txt = card.textContent.toLowerCase();
+        card.style.display = txt.includes(q) ? '' : 'none';
+      });
+    } else if(activeScreen.id === 'screen-paymgr'){
+      $all('#pmList .user-card').forEach(card=>{
         const txt = card.textContent.toLowerCase();
         card.style.display = txt.includes(q) ? '' : 'none';
       });
