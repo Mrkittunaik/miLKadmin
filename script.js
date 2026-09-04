@@ -1118,15 +1118,42 @@
     `).join('');
     $all('.notif-row').forEach((row,i)=>{
       row.addEventListener('click', ()=>{
-        $('#notifPanel').classList.remove('show');
+        closeNotifPanel();
         items[i].action();
       });
     });
   }
 
+  function positionNotifPanel(){
+    const panel = $('#notifPanel');
+    const app = $('#app');
+    const topbar = $('#topbar');
+    const appRect = app.getBoundingClientRect();
+    const topbarRect = topbar.getBoundingClientRect();
+    const navH = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--nav-h')) || 76;
+    const margin = 8;
+    const top = topbarRect.bottom + margin;
+    const right = (window.innerWidth - appRect.right) + 16;
+    const maxHeight = Math.max(120, appRect.bottom - navH - top - margin);
+    panel.style.top = top + 'px';
+    panel.style.right = right + 'px';
+    panel.style.maxHeight = maxHeight + 'px';
+  }
+
+  function openNotifPanel(){
+    positionNotifPanel();
+    $('#notifPanel').classList.add('show');
+    $('#notifOverlay').classList.add('show');
+  }
+  function closeNotifPanel(){
+    $('#notifPanel').classList.remove('show');
+    $('#notifOverlay').classList.remove('show');
+  }
+
   $('#notifBtn').addEventListener('click', (e)=>{
     e.stopPropagation();
-    $('#notifPanel').classList.toggle('show');
+    if($('#notifPanel').classList.contains('show')) closeNotifPanel();
+    else openNotifPanel();
   });
   $('#notifClearBtn').addEventListener('click', (e)=>{
     e.stopPropagation();
@@ -1134,11 +1161,15 @@
     $('#notifBadge').style.display = 'none';
     showToast('Notifications cleared');
   });
+  $('#notifOverlay').addEventListener('click', closeNotifPanel);
   document.addEventListener('click', (e)=>{
     const panel = $('#notifPanel');
-    if(panel.classList.contains('show') && !panel.contains(e.target) && e.target.id!=='notifBtn'){
-      panel.classList.remove('show');
+    if(panel.classList.contains('show') && !panel.contains(e.target) && e.target.id!=='notifBtn' && !e.target.closest('#notifBtn')){
+      closeNotifPanel();
     }
+  });
+  window.addEventListener('resize', ()=>{
+    if($('#notifPanel').classList.contains('show')) positionNotifPanel();
   });
 
   /* ============================================================
