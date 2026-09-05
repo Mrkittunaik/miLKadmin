@@ -16,46 +16,84 @@
   })();
 
   /* ============================================================
-     DATA MODEL (in-memory demo store — replace with real API calls)
+     DATA MODEL — loaded from the real pakkabackend API (see api.js).
+     These arrays start empty and are populated by loadAllData()
+     right after login; every mutation below calls the matching
+     Api.* method so changes are persisted server-side.
      ============================================================ */
-  let products = [
-    {id:'p1', name:'Full Cream Milk', unit:'500ml', category:'milk', price:32, mrp:36, stock:8, desc:'Farm fresh full cream milk, pasteurized daily.', available:true, featured:true, sold:412, img:null},
-    {id:'p2', name:'Toned Milk', unit:'1L', category:'milk', price:54, mrp:58, stock:120, desc:'Toned milk, low fat, high protein.', available:true, featured:true, sold:389, img:null},
-    {id:'p3', name:'Fresh Curd', unit:'400g', category:'curd', price:40, mrp:44, stock:0, desc:'Thick, creamy curd made fresh every morning.', available:true, featured:false, sold:201, img:null},
-    {id:'p4', name:'Paneer', unit:'200g', category:'curd', price:80, mrp:90, stock:35, desc:'Soft paneer cubes, made from full cream milk.', available:true, featured:false, sold:156, img:null},
-    {id:'p5', name:'Pure Ghee', unit:'500ml', category:'ghee', price:320, mrp:350, stock:22, desc:'Traditional bilona-method cow ghee.', available:true, featured:true, sold:98, img:null},
-    {id:'p6', name:'Table Butter', unit:'100g', category:'ghee', price:52, mrp:56, stock:60, desc:'Creamy salted butter.', available:false, featured:false, sold:64, img:null},
-    {id:'p7', name:'Brown Bread', unit:'400g', category:'bread', price:45, mrp:48, stock:14, desc:'Whole wheat brown bread, baked fresh.', available:true, featured:false, sold:77, img:null},
-    {id:'p8', name:'Farm Eggs', unit:'6 pcs', category:'bread', price:60, mrp:65, stock:9, desc:'Free-range farm eggs.', available:true, featured:false, sold:143, img:null}
-  ];
+  let products = [];
+  let deliveryBoys = [];
+  let orders = [];
+  let users = [];
 
-  let deliveryBoys = [
-    {id:'d1', name:'Rajesh Kumar', phone:'+91 98765 43210', area:'Kittu Nagar', status:'pending', joined:'2 days ago', deliveries:0, rating:null, vehicle:'Bike - MH12 AB 1234'},
-    {id:'d2', name:'Suresh Yadav', phone:'+91 98765 11122', area:'Model Town', status:'pending', joined:'1 day ago', deliveries:0, rating:null, vehicle:'Bike - MH12 CD 5678'},
-    {id:'d3', name:'Amit Sharma', phone:'+91 98765 33445', area:'Civil Lines', status:'pending', joined:'5 hours ago', deliveries:0, rating:null, vehicle:'Bicycle'},
-    {id:'d4', name:'Vikram Singh', phone:'+91 91234 55667', area:'Kittu Nagar', status:'approved', joined:'4 months ago', deliveries:842, rating:4.8, vehicle:'Bike - MH12 EF 9012'},
-    {id:'d5', name:'Manoj Verma', phone:'+91 91234 77889', area:'Sadar Bazaar', status:'approved', joined:'8 months ago', deliveries:1204, rating:4.6, vehicle:'Bike - MH12 GH 3456'},
-    {id:'d6', name:'Deepak Rao', phone:'+91 91234 99001', area:'Model Town', status:'suspended', joined:'6 months ago', deliveries:390, rating:3.2, vehicle:'Bike - MH12 IJ 7890'},
-    {id:'d7', name:'Sanjay Patil', phone:'+91 91234 22334', area:'Civil Lines', status:'rejected', joined:'1 week ago', deliveries:0, rating:null, vehicle:'Bike - MH12 KL 2345'}
-  ];
+  /* ---------- normalizers: backend doc shape -> shape this UI expects ---------- */
+  function fmtRelativeDate(dateStr){
+    if(!dateStr) return '—';
+    const d = new Date(dateStr);
+    const now = new Date();
+    const diffDays = Math.floor((now - d) / 86400000);
+    if(diffDays <= 0) return 'Today, ' + d.toLocaleTimeString('en-IN', {hour:'2-digit', minute:'2-digit'});
+    if(diffDays === 1) return 'Yesterday, ' + d.toLocaleTimeString('en-IN', {hour:'2-digit', minute:'2-digit'});
+    if(diffDays < 30) return diffDays + ' days ago';
+    return d.toLocaleDateString('en-IN', {month:'short', year:'numeric'});
+  }
+  function normProduct(p){ return Object.assign({}, p, {id: p._id || p.id}); }
+  function normDeliveryBoy(d){
+    return Object.assign({}, d, {
+      id: d._id || d.id,
+      joined: d.joined || fmtRelativeDate(d.createdAt),
+      deliveries: d.deliveries || 0
+    });
+  }
+  function normOrder(o){
+    const assignedId = o.assigned && typeof o.assigned === 'object' ? o.assigned._id : o.assigned;
+    return Object.assign({}, o, {
+      id: o.orderCode || o.id,
+      _dbId: o._id || o.id,
+      customer: o.customerName || o.customer,
+      date: o.date || fmtRelativeDate(o.createdAt),
+      assigned: assignedId || null
+    });
+  }
+  function normUser(u){
+    return Object.assign({}, u, {
+      id: u._id || u.id,
+      joined: u.joined || fmtRelativeDate(u.createdAt),
+      orders: u.orders != null ? u.orders : (u.ordersCount || 0)
+    });
+  }
 
-  let orders = [
-    {id:'PD1042', customer:'Neha Joshi', phone:'+91 90000 11111', address:'B-204, Kittu Nagar', items:[{name:'Full Cream Milk 500ml',qty:2,price:32},{name:'Fresh Curd 400g',qty:1,price:40}], total:104, status:'placed', date:'Today, 7:12 AM', assigned:null},
-    {id:'PD1041', customer:'Rohit Mehra', phone:'+91 90000 22222', address:'12, Model Town', items:[{name:'Toned Milk 1L',qty:1,price:54},{name:'Paneer 200g',qty:1,price:80}], total:134, status:'preparing', date:'Today, 6:58 AM', assigned:null},
-    {id:'PD1040', customer:'Kavita Rao', phone:'+91 90000 33333', address:'45, Sadar Bazaar', items:[{name:'Pure Ghee 500ml',qty:1,price:320}], total:320, status:'out', date:'Today, 6:40 AM', assigned:'d4'},
-    {id:'PD1039', customer:'Arjun Das', phone:'+91 90000 44444', address:'7, Civil Lines', items:[{name:'Farm Eggs 6pcs',qty:2,price:60},{name:'Brown Bread 400g',qty:1,price:45}], total:165, status:'delivered', date:'Yesterday, 8:02 PM', assigned:'d5'},
-    {id:'PD1038', customer:'Priya Nair', phone:'+91 90000 55555', address:'B-204, Kittu Nagar', items:[{name:'Full Cream Milk 500ml',qty:4,price:32}], total:128, status:'delivered', date:'Yesterday, 7:15 PM', assigned:'d4'},
-    {id:'PD1037', customer:'Sanya Kapoor', phone:'+91 90000 66666', address:'21, Model Town', items:[{name:'Table Butter 100g',qty:1,price:52}], total:52, status:'cancelled', date:'Yesterday, 5:30 PM', assigned:null}
-  ];
-
-  let users = [
-    {id:'u1', name:'Neha Joshi', phone:'+91 90000 11111', joined:'Aug 2024', orders:42, status:'active'},
-    {id:'u2', name:'Rohit Mehra', phone:'+91 90000 22222', joined:'Jan 2025', orders:18, status:'active'},
-    {id:'u3', name:'Kavita Rao', phone:'+91 90000 33333', joined:'2 days ago', orders:1, status:'new'},
-    {id:'u4', name:'Arjun Das', phone:'+91 90000 44444', joined:'Mar 2024', orders:96, status:'active'},
-    {id:'u5', name:'Priya Nair', phone:'+91 90000 55555', joined:'5 days ago', orders:2, status:'new'},
-    {id:'u6', name:'Sanya Kapoor', phone:'+91 90000 66666', joined:'Jun 2023', orders:5, status:'blocked'}
-  ];
+  async function loadAllData(){
+    try {
+      const [p, o, d, u, pl, sub, cp, bn, ct, sf, dash] = await Promise.all([
+        Api.listProducts(), Api.listOrders(), Api.listDeliveryBoys(), Api.listUsers(),
+        Api.listPlansAll(), Api.listSubscriptions(), Api.listCoupons(),
+        Api.listBannersAll(), Api.listCategoriesAll(), Api.listStaff(), Api.dashboardOverview()
+      ]);
+      products = p.map(normProduct);
+      orders = o.map(normOrder);
+      deliveryBoys = d.map(normDeliveryBoy);
+      users = u.map(normUser);
+      plans = pl.map(x=>Object.assign({}, x, {id:x._id||x.id}));
+      subscriptions = sub.map(x=>Object.assign({}, x, {
+        id:x._id||x.id,
+        customerId: x.customer && typeof x.customer==='object' ? x.customer._id : x.customer,
+        planId: x.plan && typeof x.plan==='object' ? x.plan._id : x.plan
+      }));
+      coupons = cp.map(x=>Object.assign({}, x, {id:x._id||x.id, limit:x.usageLimit||x.limit||0, used:x.usedCount||x.used||0}));
+      banners = bn.map(x=>Object.assign({}, x, {id:x._id||x.id}));
+      categories = ct.map(x=>Object.assign({}, x, {id:x._id||x.id}));
+      staff = sf.map(x=>Object.assign({}, x, {id:x._id||x.id, contact:x.contact||x.email, role: ({owner:'superadmin', admin:'manager', manager:'manager', support:'support'})[x.role] || x.role}));
+      // recompute plan subscriber counts from real subscriptions
+      plans.forEach(pn=> pn.subs = subscriptions.filter(s=>s.planId===pn.id && s.active).length );
+      lastDashboardStats = dash;
+      renderAll();
+    } catch(err){
+      console.error('Failed to load data from backend:', err);
+      showToast('Could not reach backend — check your connection');
+    }
+  }
+  let lastDashboardStats = null;
 
   const statusLabel = {placed:'Placed', preparing:'Preparing', out:'Out for Delivery', delivered:'Delivered', cancelled:'Cancelled'};
   const catLabel = {milk:'Milk', curd:'Curd & Paneer', ghee:'Ghee & Butter', bread:'Bread & Eggs'};
@@ -308,13 +346,6 @@
   /* ============================================================
      LOGIN
      ============================================================ */
-  /* ------------------------------------------------------------
-     TEMPORARY DEMO CREDENTIALS — replace with real backend/Firebase
-     auth before going live. This is a client-side check only and
-     is NOT secure (anyone can read it from the page source).
-     ------------------------------------------------------------ */
-  const DEMO_ADMIN_EMAIL = 'admin@pakkadoodhwala.in';
-  const DEMO_ADMIN_PASS  = 'admin@123';
   const SESSION_KEY = 'pd_admin_session';
 
   function enterApp(email, opts){
@@ -326,13 +357,14 @@
     $('#adminEmailLabel').textContent = email;
     goto('dashboard');
     if(!opts.silent) showToast('Welcome back, Admin!');
+    loadAllData().then(()=>{ initLiveUpdates(); });
   }
 
   function saveSession(email){
     try{ localStorage.setItem(SESSION_KEY, JSON.stringify({email, at: Date.now()})); }catch(e){}
   }
   function clearSession(){
-    try{ localStorage.removeItem(SESSION_KEY); }catch(e){}
+    try{ localStorage.removeItem(SESSION_KEY); Api.setToken(null); }catch(e){}
   }
   function loadSession(){
     try{
@@ -341,22 +373,27 @@
     }catch(e){ return null; }
   }
 
-  $('#loginBtn').addEventListener('click', ()=>{
+  $('#loginBtn').addEventListener('click', async ()=>{
     const email = $('#loginEmail').value.trim();
     const pass = $('#loginPass').value.trim();
     const errEl = $('#loginError');
 
     if(!email || !pass){ showToast('Enter email & password'); return; }
 
-    if(email.toLowerCase() !== DEMO_ADMIN_EMAIL.toLowerCase() || pass !== DEMO_ADMIN_PASS){
+    $('#loginBtn').disabled = true;
+    try{
+      const res = await Api.adminLogin(email, pass); // { token, staff: {name,email,role} }
+      Api.setToken(res.token);
+      errEl.style.display = 'none';
+      saveSession(email);
+      enterApp(email);
+    } catch(err){
+      errEl.textContent = err.message || 'Invalid email or password';
       errEl.style.display = 'block';
-      showToast('Invalid email or password');
-      return;
+      showToast(err.message || 'Invalid email or password');
+    } finally {
+      $('#loginBtn').disabled = false;
     }
-
-    errEl.style.display = 'none';
-    saveSession(email);
-    enterApp(email);
   });
 
   // Allow pressing Enter in either field to submit
@@ -477,15 +514,29 @@
     openSheet('#orderSheetBackdrop');
   }
 
-  $('#orderUpdateBtn').addEventListener('click', ()=>{
+  $('#orderUpdateBtn').addEventListener('click', async ()=>{
     const o = orders.find(x=>x.id===activeOrderId);
     if(!o) return;
-    o.status = $('#orderStatusSelect').value;
-    const assignVal = $('#orderAssignSelect').value;
-    o.assigned = assignVal || null;
-    closeSheet('#orderSheetBackdrop');
-    renderAll();
-    showToast(`Order #${o.id} updated`);
+    const newStatus = $('#orderStatusSelect').value;
+    const assignVal = $('#orderAssignSelect').value || null;
+    $('#orderUpdateBtn').disabled = true;
+    try{
+      if(assignVal && assignVal !== o.assigned){
+        const updated = await Api.assignOrder(o._dbId, assignVal);
+        Object.assign(o, normOrder(updated));
+      }
+      if(newStatus !== o.status){
+        const updated = await Api.updateOrderStatus(o._dbId, newStatus);
+        Object.assign(o, normOrder(updated));
+      }
+      closeSheet('#orderSheetBackdrop');
+      renderAll();
+      showToast(`Order #${o.id} updated`);
+    } catch(err){
+      showToast(err.message || 'Could not update order');
+    } finally {
+      $('#orderUpdateBtn').disabled = false;
+    }
   });
   $('#orderCancelBtn').addEventListener('click', ()=>closeSheet('#orderSheetBackdrop'));
   $('#orderSheetBackdrop').addEventListener('click', e=>{ if(e.target===e.currentTarget) closeSheet('#orderSheetBackdrop'); });
@@ -625,7 +676,7 @@
   $('#pfAvailToggle').addEventListener('click', ()=>$('#pfAvailToggle').classList.toggle('on'));
   $('#pfFeaturedToggle').addEventListener('click', ()=>$('#pfFeaturedToggle').classList.toggle('on'));
 
-  $('#pfSaveBtn').addEventListener('click', ()=>{
+  $('#pfSaveBtn').addEventListener('click', async ()=>{
     const name = $('#pfName').value.trim();
     const price = parseFloat($('#pfPrice').value);
     if(!name){ showToast('Enter a product name'); return; }
@@ -644,27 +695,39 @@
       img: pendingImages[0] || null
     };
 
-    if(editingProductId){
-      const p = products.find(x=>x.id===editingProductId);
-      Object.assign(p, data);
-      showToast('Product updated');
-    } else {
-      data.id = 'p' + (Date.now());
-      data.sold = 0;
-      products.unshift(data);
-      showToast('Product added');
+    $('#pfSaveBtn').disabled = true;
+    try{
+      if(editingProductId){
+        const updated = await Api.updateProduct(editingProductId, data);
+        const p = products.find(x=>x.id===editingProductId);
+        Object.assign(p, normProduct(updated));
+        showToast('Product updated');
+      } else {
+        const created = await Api.createProduct(data);
+        products.unshift(normProduct(created));
+        showToast('Product added');
+      }
+      closeSheet('#productSheetBackdrop');
+      renderProducts();
+      renderDashboard();
+    } catch(err){
+      showToast(err.message || 'Could not save product');
+    } finally {
+      $('#pfSaveBtn').disabled = false;
     }
-    closeSheet('#productSheetBackdrop');
-    renderProducts();
-    renderDashboard();
   });
 
-  $('#pfDeleteBtn').addEventListener('click', ()=>{
+  $('#pfDeleteBtn').addEventListener('click', async ()=>{
     if(!editingProductId) return;
-    products = products.filter(p=>p.id!==editingProductId);
-    closeSheet('#productSheetBackdrop');
-    renderProducts();
-    showToast('Product deleted');
+    try{
+      await Api.deleteProduct(editingProductId);
+      products = products.filter(p=>p.id!==editingProductId);
+      closeSheet('#productSheetBackdrop');
+      renderProducts();
+      showToast('Product deleted');
+    } catch(err){
+      showToast(err.message || 'Could not delete product');
+    }
   });
 
   /* ============================================================
@@ -707,12 +770,21 @@
     return div;
   }
 
-  function setDbStatus(id, status){
+  async function setDbStatus(id, status){
     const d = deliveryBoys.find(x=>x.id===id);
     if(!d) return;
-    d.status = status;
-    const msgs = {approved:'Rider approved', rejected:'Rider rejected', suspended:'Rider suspended', };
-    showToast(msgs[status] || 'Rider updated');
+    const prevStatus = d.status;
+    d.status = status; // optimistic
+    renderAll();
+    const msgs = {approved:'Rider approved', rejected:'Rider rejected', suspended:'Rider suspended'};
+    try{
+      const updated = await Api.setDeliveryBoyStatus(id, status);
+      Object.assign(d, normDeliveryBoy(updated));
+      showToast(msgs[status] || 'Rider updated');
+    } catch(err){
+      d.status = prevStatus; // rollback
+      showToast(err.message || 'Could not update rider');
+    }
     renderAll();
   }
 
@@ -799,7 +871,7 @@
   // finds this user's active subscription + resolved plan (preset or custom), and their
   // delivered-order count, so plan changes made in Plans management reflect instantly here
   function userPlanInfo(u){
-    const sub = subscriptions.find(s=>s.customer.trim().toLowerCase()===u.name.trim().toLowerCase() && s.active);
+    const sub = subscriptions.find(s=>(s.customerId===u.id || (s.customer||'').trim().toLowerCase()===u.name.trim().toLowerCase()) && s.active);
     const plan = sub && sub.planId ? plans.find(p=>p.id===sub.planId) : null;
     const delivered = orders.filter(o=>o.customer===u.name && o.status==='delivered').length;
     return {
@@ -916,9 +988,15 @@
       <button class="btn-danger-outline" id="userBlockBtn" style="margin-top:6px;">${u.status==='blocked'?'Unblock User':'Block User'}</button>
     `;
     openSheet('#userSheetBackdrop');
-    $('#userBlockBtn').addEventListener('click', ()=>{
-      u.status = u.status==='blocked' ? 'active' : 'blocked';
-      showToast(u.status==='blocked' ? 'User blocked' : 'User unblocked');
+    $('#userBlockBtn').addEventListener('click', async ()=>{
+      const newStatus = u.status==='blocked' ? 'active' : 'blocked';
+      try{
+        const updated = await Api.setUserStatus(u.id, newStatus);
+        Object.assign(u, normUser(updated));
+        showToast(newStatus==='blocked' ? 'User blocked' : 'User unblocked');
+      } catch(err){
+        showToast(err.message || 'Could not update user');
+      }
       closeSheet('#userSheetBackdrop');
       renderUsers();
     });
@@ -980,7 +1058,7 @@
   // one row per user, resolving their subscription + plan + billing status
   function paymentRecords(){
     return users.map(u=>{
-      const sub = subscriptions.find(s=>s.customer.trim().toLowerCase()===u.name.trim().toLowerCase() && s.active);
+      const sub = subscriptions.find(s=>(s.customerId===u.id || (s.customer||'').trim().toLowerCase()===u.name.trim().toLowerCase()) && s.active);
       const plan = sub && sub.planId ? plans.find(p=>p.id===sub.planId) : null;
       const status = subPaymentStatus(sub);
       return {
@@ -1299,7 +1377,7 @@
   $('#planSheetCloseBtn') && $('#planSheetCloseBtn').addEventListener('click', ()=>closeSheet('#planSheetBackdrop'));
   $('#planSheetBackdrop') && $('#planSheetBackdrop').addEventListener('click', e=>{ if(e.target===e.currentTarget) closeSheet('#planSheetBackdrop'); });
 
-  $('#planSaveBtn') && $('#planSaveBtn').addEventListener('click', ()=>{
+  $('#planSaveBtn') && $('#planSaveBtn').addEventListener('click', async ()=>{
     const name = $('#plName').value.trim();
     if(!name){ showToast('Enter a plan name'); return; }
     const qty = $('#plQtyToggle .qty-opt.active')?.dataset.qty || 'one';
@@ -1310,26 +1388,36 @@
       slot: $('#plSlot').value,
       price: Number($('#plPrice').value) || 0
     };
-    if(editingPlanId){
-      const p = plans.find(x=>x.id===editingPlanId);
-      Object.assign(p, data);
-      showToast('Plan updated');
-    } else {
-      plans.unshift({id:'pl'+Date.now(), subs:0, ...data});
-      showToast('Plan created');
+    try{
+      if(editingPlanId){
+        const updated = await Api.updatePlan(editingPlanId, data);
+        Object.assign(plans.find(x=>x.id===editingPlanId), Object.assign({}, updated, {id:updated._id||updated.id}));
+        showToast('Plan updated');
+      } else {
+        const created = await Api.createPlan(data);
+        plans.unshift(Object.assign({}, created, {id:created._id||created.id, subs:0}));
+        showToast('Plan created');
+      }
+      closeSheet('#planSheetBackdrop');
+      renderPlans();
+      renderUsers();
+    } catch(err){
+      showToast(err.message || 'Could not save plan');
     }
-    closeSheet('#planSheetBackdrop');
-    renderPlans();
-    renderUsers();
   });
 
-  $('#planDeleteBtn') && $('#planDeleteBtn').addEventListener('click', ()=>{
-    plans = plans.filter(p=>p.id!==editingPlanId);
-    subscriptions.forEach(s=>{ if(s.planId===editingPlanId) s.planId = null; });
-    closeSheet('#planSheetBackdrop');
-    showToast('Plan deleted');
-    renderPlans();
-    renderUsers();
+  $('#planDeleteBtn') && $('#planDeleteBtn').addEventListener('click', async ()=>{
+    try{
+      await Api.deletePlan(editingPlanId);
+      plans = plans.filter(p=>p.id!==editingPlanId);
+      subscriptions.forEach(s=>{ if(s.planId===editingPlanId) s.planId = null; });
+      closeSheet('#planSheetBackdrop');
+      showToast('Plan deleted');
+      renderPlans();
+      renderUsers();
+    } catch(err){
+      showToast(err.message || 'Could not delete plan');
+    }
   });
 
   /* ============================================================
@@ -1404,7 +1492,7 @@
   $('#couponSheetBackdrop') && $('#couponSheetBackdrop').addEventListener('click', e=>{ if(e.target===e.currentTarget) closeSheet('#couponSheetBackdrop'); });
   $('#cpActiveToggle') && $('#cpActiveToggle').addEventListener('click', ()=>$('#cpActiveToggle').classList.toggle('on'));
 
-  $('#couponSaveBtn') && $('#couponSaveBtn').addEventListener('click', ()=>{
+  $('#couponSaveBtn') && $('#couponSaveBtn').addEventListener('click', async ()=>{
     const code = $('#cpCode').value.trim().toUpperCase();
     if(!code){ showToast('Enter a coupon code'); return; }
     const data = {
@@ -1412,27 +1500,38 @@
       type: $('#cpType').value,
       value: Number($('#cpValue').value) || 0,
       minOrder: Number($('#cpMinOrder').value) || 0,
-      limit: Number($('#cpLimit').value) || 0,
+      usageLimit: Number($('#cpLimit').value) || 0,
       expiry: $('#cpExpiry').value || '2026-12-31',
       desc: $('#cpDesc').value.trim(),
       active: $('#cpActiveToggle').classList.contains('on')
     };
-    if(editingCouponId){
-      Object.assign(coupons.find(x=>x.id===editingCouponId), data);
-      showToast('Coupon updated');
-    } else {
-      coupons.unshift({id:'c'+Date.now(), used:0, ...data});
-      showToast('Coupon created');
+    try{
+      if(editingCouponId){
+        const updated = await Api.updateCoupon(editingCouponId, data);
+        Object.assign(coupons.find(x=>x.id===editingCouponId), updated, {id:updated._id||updated.id, limit:updated.usageLimit, used:updated.usedCount});
+        showToast('Coupon updated');
+      } else {
+        const created = await Api.createCoupon(data);
+        coupons.unshift(Object.assign({}, created, {id:created._id||created.id, limit:created.usageLimit||0, used:0}));
+        showToast('Coupon created');
+      }
+      closeSheet('#couponSheetBackdrop');
+      renderCoupons();
+    } catch(err){
+      showToast(err.message || 'Could not save coupon');
     }
-    closeSheet('#couponSheetBackdrop');
-    renderCoupons();
   });
 
-  $('#couponDeleteBtn') && $('#couponDeleteBtn').addEventListener('click', ()=>{
-    coupons = coupons.filter(c=>c.id!==editingCouponId);
-    closeSheet('#couponSheetBackdrop');
-    showToast('Coupon deleted');
-    renderCoupons();
+  $('#couponDeleteBtn') && $('#couponDeleteBtn').addEventListener('click', async ()=>{
+    try{
+      await Api.deleteCoupon(editingCouponId);
+      coupons = coupons.filter(c=>c.id!==editingCouponId);
+      closeSheet('#couponSheetBackdrop');
+      showToast('Coupon deleted');
+      renderCoupons();
+    } catch(err){
+      showToast(err.message || 'Could not delete coupon');
+    }
   });
 
   /* ============================================================
@@ -1479,7 +1578,7 @@
   $('#bannerSheetBackdrop') && $('#bannerSheetBackdrop').addEventListener('click', e=>{ if(e.target===e.currentTarget) closeSheet('#bannerSheetBackdrop'); });
   $('#bnActiveToggle') && $('#bnActiveToggle').addEventListener('click', ()=>$('#bnActiveToggle').classList.toggle('on'));
 
-  $('#bannerSaveBtn') && $('#bannerSaveBtn').addEventListener('click', ()=>{
+  $('#bannerSaveBtn') && $('#bannerSaveBtn').addEventListener('click', async ()=>{
     const title = $('#bnTitle').value.trim();
     if(!title){ showToast('Enter a banner title'); return; }
     const data = {
@@ -1489,22 +1588,33 @@
       link: $('#bnLink').value,
       active: $('#bnActiveToggle').classList.contains('on')
     };
-    if(editingBannerId){
-      Object.assign(banners.find(x=>x.id===editingBannerId), data);
-      showToast('Banner updated');
-    } else {
-      banners.push({id:'bn'+Date.now(), ...data});
-      showToast('Banner added');
+    try{
+      if(editingBannerId){
+        const updated = await Api.updateBanner(editingBannerId, data);
+        Object.assign(banners.find(x=>x.id===editingBannerId), updated, {id:updated._id||updated.id});
+        showToast('Banner updated');
+      } else {
+        const created = await Api.createBanner(data);
+        banners.push(Object.assign({}, created, {id:created._id||created.id}));
+        showToast('Banner added');
+      }
+      closeSheet('#bannerSheetBackdrop');
+      renderBanners();
+    } catch(err){
+      showToast(err.message || 'Could not save banner');
     }
-    closeSheet('#bannerSheetBackdrop');
-    renderBanners();
   });
 
-  $('#bannerDeleteBtn') && $('#bannerDeleteBtn').addEventListener('click', ()=>{
-    banners = banners.filter(b=>b.id!==editingBannerId);
-    closeSheet('#bannerSheetBackdrop');
-    showToast('Banner deleted');
-    renderBanners();
+  $('#bannerDeleteBtn') && $('#bannerDeleteBtn').addEventListener('click', async ()=>{
+    try{
+      await Api.deleteBanner(editingBannerId);
+      banners = banners.filter(b=>b.id!==editingBannerId);
+      closeSheet('#bannerSheetBackdrop');
+      showToast('Banner deleted');
+      renderBanners();
+    } catch(err){
+      showToast(err.message || 'Could not delete banner');
+    }
   });
 
   /* ============================================================
@@ -1547,7 +1657,7 @@
   $('#categorySheetBackdrop') && $('#categorySheetBackdrop').addEventListener('click', e=>{ if(e.target===e.currentTarget) closeSheet('#categorySheetBackdrop'); });
   $('#ctActiveToggle') && $('#ctActiveToggle').addEventListener('click', ()=>$('#ctActiveToggle').classList.toggle('on'));
 
-  $('#categorySaveBtn') && $('#categorySaveBtn').addEventListener('click', ()=>{
+  $('#categorySaveBtn') && $('#categorySaveBtn').addEventListener('click', async ()=>{
     const name = $('#ctName').value.trim();
     if(!name){ showToast('Enter a category name'); return; }
     const data = {
@@ -1555,23 +1665,34 @@
       icon: $('#ctIcon').value.trim(),
       active: $('#ctActiveToggle').classList.contains('on')
     };
-    if(editingCategoryId){
-      Object.assign(categories.find(x=>x.id===editingCategoryId), data);
-      showToast('Category updated');
-    } else {
-      const key = name.toLowerCase().replace(/[^a-z0-9]+/g,'-');
-      categories.push({id:'cat'+Date.now(), key, ...data});
-      showToast('Category added');
+    try{
+      if(editingCategoryId){
+        const updated = await Api.updateCategory(editingCategoryId, data);
+        Object.assign(categories.find(x=>x.id===editingCategoryId), updated, {id:updated._id||updated.id});
+        showToast('Category updated');
+      } else {
+        data.key = name.toLowerCase().replace(/[^a-z0-9]+/g,'-');
+        const created = await Api.createCategory(data);
+        categories.push(Object.assign({}, created, {id:created._id||created.id}));
+        showToast('Category added');
+      }
+      closeSheet('#categorySheetBackdrop');
+      renderCategories();
+    } catch(err){
+      showToast(err.message || 'Could not save category');
     }
-    closeSheet('#categorySheetBackdrop');
-    renderCategories();
   });
 
-  $('#categoryDeleteBtn') && $('#categoryDeleteBtn').addEventListener('click', ()=>{
-    categories = categories.filter(c=>c.id!==editingCategoryId);
-    closeSheet('#categorySheetBackdrop');
-    showToast('Category deleted');
-    renderCategories();
+  $('#categoryDeleteBtn') && $('#categoryDeleteBtn').addEventListener('click', async ()=>{
+    try{
+      await Api.deleteCategory(editingCategoryId);
+      categories = categories.filter(c=>c.id!==editingCategoryId);
+      closeSheet('#categorySheetBackdrop');
+      showToast('Category deleted');
+      renderCategories();
+    } catch(err){
+      showToast(err.message || 'Could not delete category');
+    }
   });
 
   /* ============================================================
@@ -1613,31 +1734,44 @@
   $('#staffSheetBackdrop') && $('#staffSheetBackdrop').addEventListener('click', e=>{ if(e.target===e.currentTarget) closeSheet('#staffSheetBackdrop'); });
   $('#stActiveToggle') && $('#stActiveToggle').addEventListener('click', ()=>$('#stActiveToggle').classList.toggle('on'));
 
-  $('#staffSaveBtn') && $('#staffSaveBtn').addEventListener('click', ()=>{
+  const STAFF_ROLE_TO_API = {superadmin:'owner', manager:'manager', support:'support'};
+  const STAFF_ROLE_FROM_API = {owner:'superadmin', admin:'manager', manager:'manager', support:'support'};
+
+  $('#staffSaveBtn') && $('#staffSaveBtn').addEventListener('click', async ()=>{
     const name = $('#stName').value.trim();
     if(!name){ showToast('Enter a name'); return; }
-    const data = {
-      name,
-      contact: $('#stContact').value.trim(),
-      role: $('#stRole').value,
-      active: $('#stActiveToggle').classList.contains('on')
-    };
-    if(editingStaffId){
-      Object.assign(staff.find(x=>x.id===editingStaffId), data);
-      showToast('Staff member updated');
-    } else {
-      staff.push({id:'st'+Date.now(), ...data});
-      showToast('Staff member added');
+    const contact = $('#stContact').value.trim();
+    const role = STAFF_ROLE_TO_API[$('#stRole').value] || 'manager';
+    const active = $('#stActiveToggle').classList.contains('on');
+    try{
+      if(editingStaffId){
+        const updated = await Api.updateStaff(editingStaffId, { name, role, active });
+        Object.assign(staff.find(x=>x.id===editingStaffId), updated, {id:updated._id||updated.id, contact: updated.email||contact, role: STAFF_ROLE_FROM_API[updated.role]||updated.role});
+        showToast('Staff member updated');
+      } else {
+        // new admin logins need a password — generated here and shown once so it can be shared with them
+        const tempPassword = 'Milk@' + Math.floor(1000 + Math.random()*9000);
+        const created = await Api.createStaff({ name, email: contact, password: tempPassword, role });
+        staff.push(Object.assign({}, created, {id:created._id||created.id, contact: created.email||contact, role: STAFF_ROLE_FROM_API[created.role]||created.role, active:true}));
+        showToast(`Staff added — temp password: ${tempPassword}`);
+      }
+      closeSheet('#staffSheetBackdrop');
+      renderStaff();
+    } catch(err){
+      showToast(err.message || 'Could not save staff member');
     }
-    closeSheet('#staffSheetBackdrop');
-    renderStaff();
   });
 
-  $('#staffDeleteBtn') && $('#staffDeleteBtn').addEventListener('click', ()=>{
-    staff = staff.filter(s=>s.id!==editingStaffId);
-    closeSheet('#staffSheetBackdrop');
-    showToast('Staff member removed');
-    renderStaff();
+  $('#staffDeleteBtn') && $('#staffDeleteBtn').addEventListener('click', async ()=>{
+    try{
+      await Api.deleteStaff(editingStaffId);
+      staff = staff.filter(s=>s.id!==editingStaffId);
+      closeSheet('#staffSheetBackdrop');
+      showToast('Staff member removed');
+      renderStaff();
+    } catch(err){
+      showToast(err.message || 'Could not remove staff member');
+    }
   });
 
   /* ============================================================
@@ -2189,90 +2323,69 @@
   }
 
   /* ============================================================
-     LIVE UPDATES (simulated — swap the setInterval body for a
-     websocket/poll handler when the real backend is connected)
+     LIVE UPDATES — real Socket.IO events pushed from pakkabackend
+     (see SOCKETS.md). Falls back to a periodic refetch if the
+     socket can't connect.
      ============================================================ */
-  let liveOrderSeq = 2000;
-  function simulateIncomingOrder(){
-    const names = ['Aditya Rao','Meera Iyer','Farhan Sheikh','Pooja Malhotra','Karan Chawla'];
-    const areas = ['Kittu Nagar','Model Town','Civil Lines','Sadar Bazaar'];
-    const prodPool = [{name:'Full Cream Milk 500ml',price:32},{name:'Toned Milk 1L',price:54},{name:'Fresh Curd 400g',price:40},{name:'Farm Eggs 6pcs',price:60}];
-    const item = prodPool[Math.floor(Math.random()*prodPool.length)];
-    const qty = 1 + Math.floor(Math.random()*3);
-    liveOrderSeq++;
-    const order = {
-      id: 'PD' + liveOrderSeq,
-      customer: names[Math.floor(Math.random()*names.length)],
-      phone: '+91 90000 ' + (10000+Math.floor(Math.random()*89999)),
-      address: 'New address, ' + areas[Math.floor(Math.random()*areas.length)],
-      items: [{name:item.name, qty, price:item.price}],
-      total: item.price*qty,
-      status: 'placed',
-      date: 'Today, ' + new Date().toLocaleTimeString('en-IN', {hour:'2-digit', minute:'2-digit'}),
-      assigned: null
-    };
-    orders.unshift(order);
-    renderAll();
-    showOrderPopup(order);
-  }
+  let liveSocket = null;
 
-  function simulateDeliveryProgress(){
-    // Advance a random in-flight order forward one stage — mimics a delivery boy update
-    const progressable = orders.filter(o=>o.status==='placed' || o.status==='preparing' || o.status==='out');
-    if(progressable.length === 0) return;
-    const order = progressable[Math.floor(Math.random()*progressable.length)];
-    const flow = ['placed','preparing','out','delivered'];
-    const idx = flow.indexOf(order.status);
-    if(idx > -1 && idx < flow.length-1){
-      order.status = flow[idx+1];
-      if(order.status==='out' && !order.assigned){
-        const riders = deliveryBoys.filter(d=>d.status==='approved');
-        if(riders.length) order.assigned = riders[Math.floor(Math.random()*riders.length)].id;
-      }
-      if(order.status==='delivered'){
-        const rider = deliveryBoys.find(d=>d.id===order.assigned);
-        if(rider) rider.deliveries++;
-      }
-      renderAll();
-      // If the rider detail sheet is open for the assigned rider, refresh its live panel in place
-      if(order.assigned && $('#dbSheetBackdrop').classList.contains('show') && activeDbId===order.assigned){
-        openDbSheet(activeDbId);
-      }
-    }
+  function upsertOrder(raw){
+    const o = normOrder(raw);
+    const idx = orders.findIndex(x=>x._dbId===o._dbId);
+    if(idx>-1) orders[idx] = o; else orders.unshift(o);
+    return o;
   }
-
-  function jitterDriverLocations(){
-    deliveryBoys.forEach(d=>{
-      if(d.status!=='approved' || !d._liveLoc) return;
-      d._liveLoc.top = Math.max(10, Math.min(85, d._liveLoc.top + (Math.random()*10-5)));
-      d._liveLoc.left = Math.max(10, Math.min(85, d._liveLoc.left + (Math.random()*10-5)));
-      const marker = $('#dlpMarker-'+d.id);
-      if(marker){ marker.style.top = d._liveLoc.top+'%'; marker.style.left = d._liveLoc.left+'%'; }
-    });
+  function upsertDeliveryBoy(raw){
+    const d = normDeliveryBoy(raw);
+    const idx = deliveryBoys.findIndex(x=>x.id===d.id);
+    if(idx>-1) deliveryBoys[idx] = d; else deliveryBoys.unshift(d);
+    return d;
   }
 
   function initLiveUpdates(){
-    // New order arrives roughly every 25-45s (simulated)
-    setInterval(()=>{
-      if(Math.random() < 0.6) simulateIncomingOrder();
-    }, 30000);
-    // Delivery status ticks forward roughly every 12s (simulated "delivery boy update")
-    setInterval(simulateDeliveryProgress, 12000);
-    // Driver location jitter every 4s while a rider sheet may be open
-    setInterval(jitterDriverLocations, 4000);
+    liveSocket = Api.connectSocket({
+      'order:new': (order)=>{ const o = upsertOrder(order); renderAll(); showOrderPopup(o); },
+      'order:status': (order)=>{ upsertOrder(order); renderAll(); },
+      'order:assigned': (order)=>{ upsertOrder(order); renderAll(); },
+      'driver:status': (driver)=>{ upsertDeliveryBoy(driver); renderAll(); },
+      'driver:updated': (driver)=>{
+        const d = upsertDeliveryBoy(driver);
+        renderAll();
+        if($('#dbSheetBackdrop').classList.contains('show') && activeDbId===d.id) openDbSheet(activeDbId);
+      },
+      'driver:location': ({driverId, lat, lng})=>{
+        const d = deliveryBoys.find(x=>x.id===driverId);
+        if(!d) return;
+        d._liveLoc = { lat, lng };
+        const marker = $('#dlpMarker-'+d.id);
+        if(marker){ /* real lat/lng plotting can be added once a map lib is wired in */ }
+      },
+      'user:status': (user)=>{
+        const idx = users.findIndex(u=>u.id===(user._id||user.id));
+        if(idx>-1) users[idx] = normUser(user);
+        renderAll();
+      },
+      'catalog:changed': ({kind})=>{
+        // a product/coupon/banner/category/plan/zone changed elsewhere — refetch that slice
+        loadAllData();
+      },
+      'dashboard:stats': (stats)=>{ lastDashboardStats = stats; renderDashboard(); },
+      'liveCounts': ()=>{ /* header live-count badges could bind here if added to the markup */ }
+    });
+
+    if(!liveSocket){
+      // no socket support available — fall back to polling every 20s
+      setInterval(loadAllData, 20000);
+    }
   }
 
-  // initial render (data ready even before login for instant nav after auth)
-  renderAll();
-
-  // auto-login: if a saved session exists, skip the login screen entirely.
+  // auto-login: if a saved session + token exist, skip the login screen entirely.
   // Session persists until the admin explicitly logs out (no expiry).
   const savedSession = loadSession();
-  if(savedSession && savedSession.email){
+  if(savedSession && savedSession.email && Api.getToken()){
     enterApp(savedSession.email, {silent:true});
   }
 
-  initLiveUpdates();
   initPullToRefresh();
 
 })();
