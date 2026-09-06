@@ -1764,9 +1764,14 @@
 
   $('#bannerSaveBtn') && $('#bannerSaveBtn').addEventListener('click', async ()=>{
     const title = $('#bnTitle').value.trim();
-    if(!title){ showToast('Enter a banner title'); return; }
+    // Title/subtitle/color are only required when there's NO image - an
+    // image-type banner is complete on its own (the image IS the banner).
+    if(!title && !pendingBannerImage){
+      showToast('Add a banner image or enter a title');
+      return;
+    }
     const data = {
-      title,
+      title: title || 'Banner', // backend requires a title field; harmless placeholder when image-only
       subtitle: $('#bnSubtitle').value.trim(),
       color: $('#bnColor').value,
       link: $('#bnLink').value,
