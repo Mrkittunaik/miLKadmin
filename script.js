@@ -37,12 +37,24 @@
     if(diffDays < 30) return diffDays + ' days ago';
     return d.toLocaleDateString('en-IN', {month:'short', year:'numeric'});
   }
-  function normProduct(p){ return Object.assign({}, p, {id: p._id || p.id}); }
+  function toAbsoluteUploadUrl(u){
+    if(!u) return null;
+    if(/^https?:\/\//.test(u)) return u;
+    const base = (window.MILK_API_BASE || 'http://localhost:5000').replace(/\/$/, '');
+    return base + u; // backend returns paths like "/uploads/169...-photo.jpg"
+  }
+  function normProduct(p){
+    const img = Array.isArray(p.images) && p.images.length ? toAbsoluteUploadUrl(p.images[0]) : null;
+    return Object.assign({}, p, {id: p._id || p.id, img});
+  }
   function normDeliveryBoy(d){
     return Object.assign({}, d, {
       id: d._id || d.id,
       joined: d.joined || fmtRelativeDate(d.createdAt),
-      deliveries: d.deliveries || 0
+      deliveries: d.deliveries || 0,
+      avatar: toAbsoluteUploadUrl(d.avatar),
+      idProofUrl: toAbsoluteUploadUrl(d.idProofUrl),
+      licenseUrl: toAbsoluteUploadUrl(d.licenseUrl)
     });
   }
   function normOrder(o){
@@ -59,7 +71,9 @@
     return Object.assign({}, u, {
       id: u._id || u.id,
       joined: u.joined || fmtRelativeDate(u.createdAt),
-      orders: u.orders != null ? u.orders : (u.ordersCount || 0)
+      orders: u.orders != null ? u.orders : (u.ordersCount || 0),
+      avatar: toAbsoluteUploadUrl(u.avatar),
+      idProofUrl: toAbsoluteUploadUrl(u.idProofUrl)
     });
   }
 
@@ -620,6 +634,7 @@
     const wrap = $('#imgUpload');
     Array.from(wrap.querySelectorAll('.img-slot:not(#imgAddSlot)')).forEach(el=>el.remove());
     pendingImages.forEach((src, idx)=>{
+      if(!src) return; // still uploading — skip until we have a preview/URL
       const slot = document.createElement('div');
       slot.className = 'img-slot';
       slot.innerHTML = `<img src="${src}"><div class="rm" data-rm="${idx}">${ICON_CROSS}</div>`;
@@ -632,17 +647,27 @@
     });
   }
 
-  $('#imgFileInput').addEventListener('change', (e)=>{
+  $('#imgFileInput').addEventListener('change', async (e)=>{
     const files = Array.from(e.target.files || []);
-    files.forEach(file=>{
-      const reader = new FileReader();
-      reader.onload = ev=>{
-        pendingImages.push(ev.target.result);
-        renderImgSlots();
-      };
-      reader.readAsDataURL(file);
-    });
     e.target.value = '';
+    for(const file of files){
+      // Show an instant local preview, then swap it for the real server URL
+      // once uploaded — the product is saved with server URLs, not base64 blobs.
+      const previewIdx = pendingImages.length;
+      const reader = new FileReader();
+      reader.onload = ev=>{ pendingImages[previewIdx] = ev.target.result; renderImgSlots(); };
+      reader.readAsDataURL(file);
+      pendingImages.push(null);
+      renderImgSlots();
+      try{
+        const { url } = await Api.uploadProductImage(file);
+        pendingImages[previewIdx] = url;
+      } catch(err){
+        showToast(err.message || 'Image upload failed');
+        pendingImages.splice(previewIdx, 1);
+      }
+      renderImgSlots();
+    }
   });
 
   function openProductSheet(productId){
@@ -659,7 +684,7 @@
       $('#pfDesc').value = p.desc || '';
       $('#pfAvailToggle').classList.toggle('on', p.available);
       $('#pfFeaturedToggle').classList.toggle('on', p.featured);
-      pendingImages = p.img ? [p.img] : [];
+      pendingImages = Array.isArray(p.images) ? p.images.slice() : (p.img ? [p.img] : []);
       renderImgSlots();
       $('#pfDeleteBtn').style.display = 'block';
     } else {
@@ -692,7 +717,7 @@
       desc: $('#pfDesc').value.trim(),
       available: $('#pfAvailToggle').classList.contains('on'),
       featured: $('#pfFeaturedToggle').classList.contains('on'),
-      img: pendingImages[0] || null
+      images: pendingImages.filter(Boolean)
     };
 
     $('#pfSaveBtn').disabled = true;
@@ -859,8 +884,50 @@
       </div>
       <div class="field"><label>Joined</label><input type="text" value="${d.joined}" readonly></div>
       ${buildDriverLivePanel(d)}
+      <div class="field">
+        <label>Document Verification</label>
+        <div style="display:flex; align-items:center; gap:10px;">
+          <span class="db-status ${d.verified?'approved':'pending'}">${d.verified?'Verified':'Not verified'}</span>
+          <button class="btn-secondary" id="dbVerifyBtn" style="flex:0;">${d.verified?'Unverify':'Mark Verified'}</button>
+        </div>
+        <div style="display:flex; gap:8px; margin-top:8px;">
+          <div style="flex:1;"><label style="font-size:10.5px;">ID Proof</label><input type="file" id="dbIdProofInput" accept="image/*"></div>
+          <div style="flex:1;"><label style="font-size:10.5px;">License</label><input type="file" id="dbLicenseInput" accept="image/*"></div>
+        </div>
+      </div>
+      <button class="btn-danger-outline" id="dbDeleteBtn" style="margin-top:10px; width:100%;">Delete Account</button>
     `;
     openSheet('#dbSheetBackdrop');
+    $('#dbVerifyBtn').addEventListener('click', async ()=>{
+      try{
+        const updated = await Api.setDeliveryBoyVerified(d.id, !d.verified);
+        Object.assign(d, normDeliveryBoy(updated));
+        openDbSheet(d.id);
+        showToast(d.verified ? 'Rider marked verified' : 'Verification removed');
+      } catch(err){ showToast(err.message || 'Could not update verification'); }
+    });
+    $('#dbIdProofInput').addEventListener('change', async (e)=>{
+      const file = e.target.files[0];
+      if(!file) return;
+      try{ const updated = await Api.uploadDeliveryBoyImage(d.id, file, 'idProof'); Object.assign(d, normDeliveryBoy(updated)); showToast('ID proof uploaded'); }
+      catch(err){ showToast(err.message || 'Upload failed'); }
+    });
+    $('#dbLicenseInput').addEventListener('change', async (e)=>{
+      const file = e.target.files[0];
+      if(!file) return;
+      try{ const updated = await Api.uploadDeliveryBoyImage(d.id, file, 'license'); Object.assign(d, normDeliveryBoy(updated)); showToast('License uploaded'); }
+      catch(err){ showToast(err.message || 'Upload failed'); }
+    });
+    $('#dbDeleteBtn').addEventListener('click', async ()=>{
+      if(!confirm(`Permanently delete ${d.name}'s rider account?`)) return;
+      try{
+        await Api.deleteDeliveryBoy(d.id);
+        deliveryBoys = deliveryBoys.filter(x=>x.id!==d.id);
+        renderAll();
+        closeSheet('#dbSheetBackdrop');
+        showToast('Rider account deleted');
+      } catch(err){ showToast(err.message || 'Could not delete rider'); }
+    });
   }
   $('#dbSheetCloseBtn').addEventListener('click', ()=>closeSheet('#dbSheetBackdrop'));
   $('#dbSheetBackdrop').addEventListener('click', e=>{ if(e.target===e.currentTarget) closeSheet('#dbSheetBackdrop'); });
@@ -983,11 +1050,67 @@
           <button class="btn-secondary" id="userReminderBtn" style="flex:1;">Send Reminder</button>
         </div>
       </div>` : `<div class="field"><label>Active Plan</label><div style="font-size:12px; color:var(--muted);">No active subscription plan.</div></div>`}
+      <div class="field"><label>Edit Details</label>
+        <input type="text" id="userEditName" value="${u.name||''}" placeholder="Name" style="margin-bottom:6px;">
+        <input type="text" id="userEditEmail" value="${u.email||''}" placeholder="Email" style="margin-bottom:6px;">
+        <input type="text" id="userEditPhone" value="${u.phone||''}" placeholder="Phone">
+      </div>
+      <div class="field">
+        <label>Identity / Avatar</label>
+        <div style="display:flex; align-items:center; gap:10px;">
+          <span class="db-status ${u.verified?'approved':'pending'}">${u.verified?'Verified':'Not verified'}</span>
+          <button class="btn-secondary" id="userVerifyBtn" style="flex:0;">${u.verified?'Unverify':'Mark Verified'}</button>
+        </div>
+        <input type="file" id="userAvatarInput" accept="image/*" style="margin-top:8px;">
+      </div>
       <div class="field"><label>Recent Orders</label></div>
       ${userOrders.length ? userOrders.map(o=>`<div class="list-card" style="margin-bottom:8px;"><div style="display:flex; justify-content:space-between;"><b style="font-size:12.5px;">#${o.id}</b><span class="order-status ${o.status}">${statusLabel[o.status]}</span></div><div style="font-size:11.5px; color:var(--muted); margin-top:4px;">${o.date} &middot; ₹${o.total}</div></div>`).join('') : '<div style="font-size:12px; color:var(--muted);">No recent orders on this device.</div>'}
-      <button class="btn-danger-outline" id="userBlockBtn" style="margin-top:6px;">${u.status==='blocked'?'Unblock User':'Block User'}</button>
+      <div style="display:flex; gap:8px; margin-top:10px;">
+        <button class="btn-secondary" id="userSaveBtn" style="flex:1;">Save Changes</button>
+        <button class="btn-danger-outline" id="userBlockBtn" style="flex:1;">${u.status==='blocked'?'Unblock User':'Block User'}</button>
+      </div>
+      <button class="btn-danger-outline" id="userDeleteBtn" style="margin-top:8px; width:100%;">Delete Account</button>
     `;
     openSheet('#userSheetBackdrop');
+    $('#userSaveBtn').addEventListener('click', async ()=>{
+      try{
+        const updated = await Api.updateUser(u.id, {
+          name: $('#userEditName').value.trim(),
+          email: $('#userEditEmail').value.trim(),
+          phone: $('#userEditPhone').value.trim()
+        });
+        Object.assign(u, normUser(updated));
+        renderUsers();
+        showToast('User details saved');
+      } catch(err){ showToast(err.message || 'Could not save user'); }
+    });
+    $('#userVerifyBtn').addEventListener('click', async ()=>{
+      try{
+        const updated = await Api.setUserVerified(u.id, !u.verified);
+        Object.assign(u, normUser(updated));
+        openUserSheet(u.id);
+        showToast(u.verified ? 'User marked verified' : 'Verification removed');
+      } catch(err){ showToast(err.message || 'Could not update verification'); }
+    });
+    $('#userAvatarInput').addEventListener('change', async (e)=>{
+      const file = e.target.files[0];
+      if(!file) return;
+      try{
+        const updated = await Api.uploadUserImage(u.id, file, 'avatar');
+        Object.assign(u, normUser(updated));
+        showToast('Photo uploaded');
+      } catch(err){ showToast(err.message || 'Upload failed'); }
+    });
+    $('#userDeleteBtn').addEventListener('click', async ()=>{
+      if(!confirm(`Permanently delete ${u.name || u.phone}'s account? This cannot be undone.`)) return;
+      try{
+        await Api.deleteUser(u.id);
+        users = users.filter(x=>x.id!==u.id);
+        renderAll();
+        closeSheet('#userSheetBackdrop');
+        showToast('User account deleted');
+      } catch(err){ showToast(err.message || 'Could not delete user'); }
+    });
     $('#userBlockBtn').addEventListener('click', async ()=>{
       const newStatus = u.status==='blocked' ? 'active' : 'blocked';
       try{
@@ -1154,10 +1277,23 @@
      ============================================================ */
   let notifReadAt = 0; // timestamp; notifications older than this are treated as read
 
+  // Transient live events (new order arrived, payment update, etc.) pushed straight
+  // from socket handlers - kept separate from the derived list below since they
+  // aren't recomputable from current state alone (e.g. "order #123 just arrived").
+  let liveNotifQueue = [];
+  function pushLiveNotification(n){
+    liveNotifQueue.unshift(Object.assign({key:'live-'+Date.now()+Math.random()}, n));
+    if(liveNotifQueue.length > 20) liveNotifQueue.length = 20;
+    refreshNotifications();
+  }
+
   function buildNotifications(){
-    const items = [];
+    const items = [...liveNotifQueue];
     users.filter(u=>u.status==='new').forEach(u=>{
       items.push({icon:'👤', text:`${u.name} just signed up`, sub:`Joined ${u.joined}`, action:()=>openUserSheet(u.id), key:'new-'+u.id});
+    });
+    deliveryBoys.filter(d=>d.status==='pending').forEach(d=>{
+      items.push({icon:'🛵', text:`${d.name} applied as a delivery partner`, sub:'Awaiting approval', action:()=>openDbSheet(d.id), key:'pend-'+d.id});
     });
     paymentRecords().forEach(r=>{
       if(r.status==='expiring'){
@@ -2344,7 +2480,10 @@
 
   function initLiveUpdates(){
     liveSocket = Api.connectSocket({
-      'order:new': (order)=>{ const o = upsertOrder(order); renderAll(); showOrderPopup(o); },
+      'order:new': (order)=>{
+        const o = upsertOrder(order); renderAll(); showOrderPopup(o);
+        pushLiveNotification({icon:'🛒', text:`New order ${o.id} — ₹${o.total}`, sub:o.customer, action:()=>openOrderSheet(o.id)});
+      },
       'order:status': (order)=>{ upsertOrder(order); renderAll(); },
       'order:assigned': (order)=>{ upsertOrder(order); renderAll(); },
       'driver:status': (driver)=>{ upsertDeliveryBoy(driver); renderAll(); },
@@ -2364,6 +2503,33 @@
         const idx = users.findIndex(u=>u.id===(user._id||user.id));
         if(idx>-1) users[idx] = normUser(user);
         renderAll();
+      },
+      'user:updated': (user)=>{
+        const u = normUser(user);
+        const idx = users.findIndex(x=>x.id===u.id);
+        if(idx>-1) users[idx] = u; else users.unshift(u);
+        renderAll();
+        if($('#userSheetBackdrop').classList.contains('show') && activeUserId===u.id) openUserSheet(u.id);
+      },
+      'user:deleted': ({_id})=>{
+        users = users.filter(u=>u.id!==_id);
+        renderAll();
+        if($('#userSheetBackdrop').classList.contains('show') && activeUserId===_id) closeSheet('#userSheetBackdrop');
+      },
+      'driver:deleted': ({_id})=>{
+        deliveryBoys = deliveryBoys.filter(d=>d.id!==_id);
+        renderAll();
+        if($('#dbSheetBackdrop').classList.contains('show') && activeDbId===_id) closeSheet('#dbSheetBackdrop');
+      },
+      'subscription:changed': (sub)=>{
+        // billing/plan/schedule change from either side — refetch so calendar,
+        // plan subscriber counts and payment manager all stay correct together
+        loadAllData();
+      },
+      'payment:changed': (payment)=>{
+        // a per-order payment was marked paid/due/overdue — refresh payments screen + revenue cards
+        loadAllData();
+        pushLiveNotification({icon:'💳', text:`Payment ${payment.status} — ₹${payment.amount}`, sub:payment.order ? `Order ${payment.order}` : ''});
       },
       'catalog:changed': ({kind})=>{
         // a product/coupon/banner/category/plan/zone changed elsewhere — refetch that slice
