@@ -240,6 +240,7 @@
   let activeDbId = null;
   let activeUserId = null;
   let pendingImages = [];
+  let pendingBannerImage = null;
   let calCurrentMonth = new Date(2026, 7, 1); // August 2026
   let calSelectedDate = new Date(2026, 7, 29);
   let planUsesCustom = false;
@@ -1697,6 +1698,43 @@
     });
   }
 
+  function renderBnImgSlot(){
+    const wrap = $('#bnImgUpload');
+    if(!wrap) return;
+    wrap.querySelectorAll('.img-slot:not(#bnImgAddSlot)').forEach(el=>el.remove());
+    if(pendingBannerImage){
+      const src = pendingBannerImage.startsWith('data:')
+        ? pendingBannerImage
+        : toAbsoluteUploadUrl(pendingBannerImage);
+      const slot = document.createElement('div');
+      slot.className = 'img-slot';
+      slot.innerHTML = `<img src="${src}"><div class="rm" data-rm-banner="1">${ICON_CROSS}</div>`;
+      slot.querySelector('.rm').addEventListener('click', (e)=>{
+        e.stopPropagation();
+        pendingBannerImage = null;
+        renderBnImgSlot();
+      });
+      wrap.insertBefore(slot, $('#bnImgAddSlot'));
+    }
+  }
+
+  $('#bnImgFileInput') && $('#bnImgFileInput').addEventListener('change', async (e)=>{
+    const file = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = ev=>{ pendingBannerImage = ev.target.result; renderBnImgSlot(); };
+    reader.readAsDataURL(file);
+    try{
+      const { url } = await Api.uploadBannerImage(file);
+      pendingBannerImage = url;
+    } catch(err){
+      showToast(err.message || 'Banner image upload failed');
+      pendingBannerImage = null;
+    }
+    renderBnImgSlot();
+  });
+
   function openBannerSheet(id){
     editingBannerId = id || null;
     const b = id ? banners.find(x=>x.id===id) : null;
@@ -1706,6 +1744,8 @@
     $('#bnColor').value = b ? b.color : '#FDC202';
     $('#bnLink').value = b ? b.link : 'coupons';
     $('#bnActiveToggle').classList.toggle('on', b ? b.active : true);
+    pendingBannerImage = b ? (b.image || null) : null;
+    renderBnImgSlot();
     $('#bannerDeleteBtn').style.display = b ? 'block' : 'none';
     openSheet('#bannerSheetBackdrop');
   }
@@ -1722,7 +1762,8 @@
       subtitle: $('#bnSubtitle').value.trim(),
       color: $('#bnColor').value,
       link: $('#bnLink').value,
-      active: $('#bnActiveToggle').classList.contains('on')
+      active: $('#bnActiveToggle').classList.contains('on'),
+      image: pendingBannerImage || null
     };
     try{
       if(editingBannerId){
