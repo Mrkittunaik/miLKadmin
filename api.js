@@ -35,6 +35,19 @@
     return data;
   }
 
+  // Multipart upload (avatar / ID proof / license / product images) - no JSON content-type,
+  // browser sets the multipart boundary itself.
+  async function requestForm(path, formData) {
+    const headers = {};
+    const token = getToken();
+    if (token) headers['Authorization'] = 'Bearer ' + token;
+    const res = await fetch(API_BASE + path, { method: 'POST', headers, body: formData });
+    let data = null;
+    try { data = await res.json(); } catch (e) { /* no body */ }
+    if (!res.ok) throw new Error((data && data.error) || `Upload failed (${res.status})`);
+    return data;
+  }
+
   const get = (path) => request('GET', path);
   const post = (path, body) => request('POST', path, body);
   const put = (path, body) => request('PUT', path, body);
@@ -66,10 +79,23 @@
     createProduct: (data) => post('/products', data),
     updateProduct: (id, data) => put(`/products/${id}`, data),
     deleteProduct: (id) => del(`/products/${id}`),
+    uploadProductImage: (file) => {
+      const form = new FormData();
+      form.append('image', file);
+      return requestForm('/products/upload-image', form);
+    },
 
     // ---- delivery boys ----
     setDeliveryBoyStatus: (id, status) => patch(`/delivery-boys/${id}/status`, { status }),
     updateDeliveryBoy: (id, data) => put(`/delivery-boys/${id}`, data),
+    setDeliveryBoyVerified: (id, verified) => patch(`/delivery-boys/${id}/verify`, { verified }),
+    deleteDeliveryBoy: (id) => del(`/delivery-boys/${id}`),
+    uploadDeliveryBoyImage: (id, file, field) => {
+      const form = new FormData();
+      form.append('image', file);
+      form.append('field', field || 'avatar');
+      return requestForm(`/delivery-boys/${id}/image`, form);
+    },
 
     // ---- orders ----
     updateOrderStatus: (id, status) => patch(`/orders/${id}/status`, { status }),
@@ -77,6 +103,15 @@
 
     // ---- users ----
     setUserStatus: (id, status) => patch(`/users/${id}/status`, { status }),
+    updateUser: (id, data) => put(`/users/${id}`, data),
+    setUserVerified: (id, verified) => patch(`/users/${id}/verify`, { verified }),
+    deleteUser: (id) => del(`/users/${id}`),
+    uploadUserImage: (id, file, field) => {
+      const form = new FormData();
+      form.append('image', file);
+      form.append('field', field || 'avatar');
+      return requestForm(`/users/${id}/image`, form);
+    },
 
     // ---- plans ----
     createPlan: (data) => post('/plans', data),
