@@ -631,6 +631,8 @@
     renderImgSlots();
   }
 
+  const MAX_PRODUCT_IMAGES = 3;
+
   function renderImgSlots(){
     const wrap = $('#imgUpload');
     Array.from(wrap.querySelectorAll('.img-slot:not(#imgAddSlot)')).forEach(el=>el.remove());
@@ -646,11 +648,17 @@
       });
       wrap.insertBefore(slot, $('#imgAddSlot'));
     });
+    $('#imgAddSlot').style.display = pendingImages.length >= MAX_PRODUCT_IMAGES ? 'none' : '';
   }
 
   $('#imgFileInput').addEventListener('change', async (e)=>{
-    const files = Array.from(e.target.files || []);
+    let files = Array.from(e.target.files || []);
     e.target.value = '';
+    const remaining = MAX_PRODUCT_IMAGES - pendingImages.length;
+    if(files.length > remaining){
+      showToast(`Up to ${MAX_PRODUCT_IMAGES} images per product`);
+      files = files.slice(0, remaining);
+    }
     for(const file of files){
       // Show an instant local preview, then swap it for the real server URL
       // once uploaded — the product is saved with server URLs, not base64 blobs.
