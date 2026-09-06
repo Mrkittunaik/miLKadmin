@@ -127,6 +127,11 @@
     createBanner: (data) => post('/banners', data),
     updateBanner: (id, data) => put(`/banners/${id}`, data),
     deleteBanner: (id) => del(`/banners/${id}`),
+    uploadBannerImage: (file) => {
+      const form = new FormData();
+      form.append('image', file);
+      return requestForm('/banners/upload-image', form);
+    },
 
     // ---- categories ----
     createCategory: (data) => post('/categories', data),
