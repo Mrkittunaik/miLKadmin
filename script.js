@@ -25,6 +25,8 @@
   let deliveryBoys = [];
   let orders = [];
   let users = [];
+  let zones = [];
+  let payments = [];
 
   /* ---------- normalizers: backend doc shape -> shape this UI expects ---------- */
   function fmtRelativeDate(dateStr){
@@ -79,10 +81,11 @@
 
   async function loadAllData(){
     try {
-      const [p, o, d, u, pl, sub, cp, bn, ct, sf, dash] = await Promise.all([
+      const [p, o, d, u, pl, sub, cp, bn, ct, sf, dash, zn, pay] = await Promise.all([
         Api.listProducts(), Api.listOrders(), Api.listDeliveryBoys(), Api.listUsers(),
         Api.listPlansAll(), Api.listSubscriptions(), Api.listCoupons(),
-        Api.listBannersAll(), Api.listCategoriesAll(), Api.listStaff(), Api.dashboardOverview()
+        Api.listBannersAll(), Api.listCategoriesAll(), Api.listStaff(), Api.dashboardOverview(),
+        Api.listZones(), Api.listPayments()
       ]);
       products = p.map(normProduct);
       orders = o.map(normOrder);
@@ -98,6 +101,13 @@
       banners = bn.map(x=>Object.assign({}, x, {id:x._id||x.id}));
       categories = ct.map(x=>Object.assign({}, x, {id:x._id||x.id}));
       staff = sf.map(x=>Object.assign({}, x, {id:x._id||x.id, contact:x.contact||x.email, role: ({owner:'superadmin', admin:'manager', manager:'manager', support:'support'})[x.role] || x.role}));
+      const zoneColors = ['#4CAF6D','#3B82C4','#FDC202','#E8604C','#8B5CF6','#14B8A6'];
+      zones = zn.map((z,idx)=>Object.assign({}, z, {id:z._id||z.id, color: zoneColors[idx % zoneColors.length]}));
+      payments = pay.map(x=>Object.assign({}, x, {
+        id: x._id || x.id,
+        customerName: x.customer && typeof x.customer==='object' ? x.customer.name : '',
+        orderId: x.order && typeof x.order==='object' ? x.order._id : x.order
+      }));
       // recompute plan subscriber counts from real subscriptions
       plans.forEach(pn=> pn.subs = subscriptions.filter(s=>s.planId===pn.id && s.active).length );
       lastDashboardStats = dash;
@@ -159,11 +169,7 @@
     return list;
   }
 
-  /* ---------- ZONES (auto-cluster) ---------- */
-  const zoneDefs = [
-    {name:'Kittu Nagar & Model Town', color:'#4CAF6D', areas:['Kittu Nagar','Model Town']},
-    {name:'Civil Lines & Sadar Bazaar', color:'#3B82C4', areas:['Civil Lines','Sadar Bazaar']}
-  ];
+  /* ---------- ZONES (real backend zones, see /api/zones) ---------- */
   function mapUrl(address){
     return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(address);
   }
@@ -172,11 +178,11 @@
     return `<a href="${mapUrl(address)}" target="_blank" rel="noopener" style="display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:700; color:var(--green-dim); margin-top:4px; text-decoration:none;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 21s7-6.5 7-12a7 7 0 1 0-14 0c0 5.5 7 12 7 12z"/><circle cx="12" cy="9" r="2.5"/></svg>${address}</a>`;
   }
   function areaOf(address){
-    const found = zoneDefs.flatMap(z=>z.areas).find(a=>address.includes(a));
+    const found = zones.flatMap(z=>z.areas||[]).find(a=>address.includes(a));
     return found || 'Unassigned';
   }
   function zoneOf(address){
-    return zoneDefs.find(z=>z.areas.some(a=>address.includes(a)))?.name || 'Unassigned';
+    return zones.find(z=>(z.areas||[]).some(a=>address.includes(a)))?.name || 'Unassigned';
   }
 
   /* ---------- COUPONS ---------- */
@@ -1971,34 +1977,61 @@
     const summary = $('#paymentsSummary');
     const list = $('#payoutsList');
     if(!summary || !list) return;
-    const delivered = orders.filter(o=>o.status==='delivered');
-    const grossRevenue = delivered.reduce((sum,o)=>sum+(o.total||0),0);
-    const totalRiderPayout = deliveryBoys.filter(d=>d.status==='approved').reduce((s,d)=>s+d.deliveries*15,0);
+    const paid = payments.filter(p=>p.status==='paid');
+    const due = payments.filter(p=>p.status==='due' || p.status==='overdue');
+    const grossRevenue = paid.reduce((sum,p)=>sum+(p.amount||0),0);
+    const pendingAmount = due.reduce((sum,p)=>sum+(p.amount||0),0);
     summary.innerHTML = `
-      <div class="cal-summary-chip"><b>₹${grossRevenue}</b><span>REVENUE</span></div>
-      <div class="cal-summary-chip"><b>${delivered.length}</b><span>DELIVERED</span></div>
-      <div class="cal-summary-chip"><b>₹${totalRiderPayout}</b><span>PAYOUTS</span></div>
+      <div class="cal-summary-chip"><b>₹${grossRevenue}</b><span>COLLECTED</span></div>
+      <div class="cal-summary-chip"><b>${paid.length}</b><span>PAID</span></div>
+      <div class="cal-summary-chip"><b>₹${pendingAmount}</b><span>PENDING</span></div>
     `;
-    const approved = deliveryBoys.filter(d=>d.status==='approved');
-    if(!approved.length){
-      list.innerHTML = `<div style="text-align:center; color:var(--muted); font-size:12.5px; padding:20px 0;">No approved riders yet.</div>`;
+    if(!payments.length){
+      list.innerHTML = `<div style="text-align:center; color:var(--muted); font-size:12.5px; padding:20px 0;">No payment records yet.</div>`;
       return;
     }
-    list.innerHTML = approved.map(d=>{
-      const payout = d.deliveries * 15; // ₹15 per delivery, demo rate
+    const statusColor = {paid:'var(--green-dim)', due:'var(--muted)', overdue:'#E8604C', refunded:'#3B82C4'};
+    list.innerHTML = payments.slice(0, 50).map(p=>{
       return `
-      <div class="plan-card">
+      <div class="plan-card" data-payment-id="${p.id}" style="cursor:${p.status==='paid'?'default':'pointer'};">
         <div class="plan-top">
-          <div class="plan-name">${d.name}</div>
-          <div class="plan-price" style="font-size:15px;">₹${payout}</div>
+          <div class="plan-name">${p.customerName || 'Customer'}</div>
+          <div class="plan-price" style="font-size:15px; color:${statusColor[p.status]||'var(--muted)'};">₹${p.amount}</div>
         </div>
-        <div style="font-size:12px; color:var(--muted); margin-top:2px;">${d.deliveries} deliveries · ${d.area}</div>
+        <div style="font-size:12px; color:var(--muted); margin-top:2px; text-transform:capitalize;">${p.status} · ${p.method}${p.orderId ? ' · Order '+p.orderId : ''}</div>
       </div>`;
     }).join('');
+    list.querySelectorAll('[data-payment-id]').forEach(card=>{
+      card.addEventListener('click', async ()=>{
+        const id = card.getAttribute('data-payment-id');
+        const p = payments.find(x=>x.id===id);
+        if(!p || p.status==='paid') return;
+        try{
+          const updated = await Api.markPaymentStatus(id, 'paid');
+          const idx = payments.findIndex(x=>x.id===id);
+          if(idx>-1) payments[idx] = Object.assign({}, payments[idx], updated);
+          renderPayments();
+          showToast('Marked as paid');
+        } catch(err){
+          showToast(err.message || 'Could not update payment');
+        }
+      });
+    });
   }
 
-  $('#runPayoutBtn') && $('#runPayoutBtn').addEventListener('click', ()=>{
-    showToast('Payout run scheduled for Friday 6 PM');
+  $('#runPayoutBtn') && $('#runPayoutBtn').addEventListener('click', async ()=>{
+    try{
+      const pay = await Api.listPayments();
+      payments = pay.map(x=>Object.assign({}, x, {
+        id: x._id || x.id,
+        customerName: x.customer && typeof x.customer==='object' ? x.customer.name : '',
+        orderId: x.order && typeof x.order==='object' ? x.order._id : x.order
+      }));
+      renderPayments();
+      showToast('Payments refreshed');
+    } catch(err){
+      showToast(err.message || 'Could not refresh payments');
+    }
   });
 
   /* ============================================================
@@ -2261,11 +2294,15 @@
   function renderZones(){
     const list = $('#zonesList');
     if(!list) return;
-    const today = new Date(2026, 7, 29);
+    if(!zones.length){
+      list.innerHTML = `<div style="text-align:center; color:var(--muted); font-size:12.5px; padding:20px 0;">No zones set up yet — add one from the backend zones API.</div>`;
+      return;
+    }
+    const today = new Date();
     const todays = deliveriesOnDate(today);
     const approvedRiders = deliveryBoys.filter(d=>d.status==='approved');
 
-    list.innerHTML = zoneDefs.map(zone=>{
+    list.innerHTML = zones.map(zone=>{
       const zoneDeliveries = todays.filter(x=>zoneOf(x.sub.address)===zone.name);
       const ridersInZone = approvedRiders.filter(r=>zone.areas.includes(r.area));
       const ridersToUse = ridersInZone.length ? ridersInZone : approvedRiders.slice(0,1);
@@ -2558,6 +2595,30 @@
         if(idx>-1) users[idx] = normUser(user);
         renderAll();
       },
+      'user:new': (user)=>{
+        const u = normUser(user);
+        const idx = users.findIndex(x=>x.id===u.id);
+        if(idx>-1) users[idx] = u; else users.unshift(u);
+        renderAll();
+        pushLiveNotification({
+          icon:'🆕',
+          text:`New user signed up${u.name ? ' — '+u.name : ''}`,
+          sub:[u.phone, u.email].filter(Boolean).join(' · '),
+          action:()=>openUserSheet(u.id)
+        });
+      },
+      'user:login': (user)=>{
+        const u = normUser(user);
+        const idx = users.findIndex(x=>x.id===u.id);
+        if(idx>-1) users[idx] = u; else users.unshift(u);
+        renderAll();
+        pushLiveNotification({
+          icon:'👋',
+          text:`${u.name || u.phone || 'A user'} logged in`,
+          sub:[u.phone, u.email].filter(Boolean).join(' · '),
+          action:()=>openUserSheet(u.id)
+        });
+      },
       'user:updated': (user)=>{
         const u = normUser(user);
         const idx = users.findIndex(x=>x.id===u.id);
@@ -2590,7 +2651,20 @@
         loadAllData();
       },
       'dashboard:stats': (stats)=>{ lastDashboardStats = stats; renderDashboard(); },
-      'liveCounts': ()=>{ /* header live-count badges could bind here if added to the markup */ }
+      'liveCounts': (counts)=>{
+        const row = $('#liveCountsRow');
+        if(!row) return;
+        row.textContent = `${counts.customersOnline||0} customers · ${counts.driversOnline||0} riders · ${counts.adminsOnline||0} admins online`;
+      },
+      'order:rejectedByDriver': ({orderId, driverId})=>{
+        const o = orders.find(x=>x._dbId===orderId);
+        const driver = deliveryBoys.find(d=>d.id===driverId);
+        pushLiveNotification({icon:'⚠️', text:`Rider declined order ${o ? o.id : orderId}`, sub: driver ? driver.name : ''});
+      },
+      'order:needsManualAssign': (order)=>{
+        const o = upsertOrder(order); renderAll();
+        pushLiveNotification({icon:'🚨', text:`Order ${o.id} needs manual assignment — all riders declined`, sub:o.customer, action:()=>openOrderSheet(o.id)});
+      }
     });
 
     if(!liveSocket){
