@@ -378,7 +378,12 @@
     $('#adminEmailLabel').textContent = email;
     goto('dashboard');
     if(!opts.silent) showToast('Welcome back, Admin!');
-    loadAllData().then(()=>{ initLiveUpdates(); });
+    // Connect the socket immediately, in parallel with the initial data load —
+    // don't wait for all 13 REST calls to finish first. This way a live
+    // 'order:new' (or any other) event can arrive and render the instant it
+    // happens, instead of being stuck behind the initial page load.
+    initLiveUpdates();
+    loadAllData();
   }
 
   function saveSession(email){
@@ -2512,10 +2517,14 @@
     if(!el) return;
     $('#orderPopupTitle').textContent = 'New order received';
     $('#orderPopupSub').textContent = `#${order.id} · ${order.customer} · ₹${order.total}`;
+    const itemsStr = (order.items||[]).map(i=>`${i.qty}× ${i.name}`).join(', ');
+    const detailBits = [order.phone, order.address, itemsStr].filter(Boolean);
+    const detailEl = $('#orderPopupDetail');
+    if(detailEl) detailEl.textContent = detailBits.join(' · ');
     el.classList.add('show');
-    el.onclick = (e)=>{ if(e.target.closest('.op-close')) return; goto('orders'); el.classList.remove('show'); };
+    el.onclick = (e)=>{ if(e.target.closest('.op-close')) return; goto('orders'); el.classList.remove('show'); openOrderSheet(order.id); };
     clearTimeout(popupTimer);
-    popupTimer = setTimeout(()=>el.classList.remove('show'), 4500);
+    popupTimer = setTimeout(()=>el.classList.remove('show'), 6000);
     playNotifSound();
   }
   $('#orderPopupClose').addEventListener('click', (e)=>{
@@ -2603,7 +2612,13 @@
     liveSocket = Api.connectSocket({
       'order:new': (order)=>{
         const o = upsertOrder(order); renderAll(); showOrderPopup(o);
-        pushLiveNotification({icon:'🛒', text:`New order ${o.id} — ₹${o.total}`, sub:o.customer, action:()=>openOrderSheet(o.id)});
+        const itemsStr = (o.items||[]).map(i=>`${i.qty}× ${i.name}`).join(', ');
+        pushLiveNotification({
+          icon:'🛒',
+          text:`New order ${o.id} — ₹${o.total} — ${o.customer}`,
+          sub:[o.phone, o.address, itemsStr].filter(Boolean).join(' · '),
+          action:()=>openOrderSheet(o.id)
+        });
       },
       'order:status': (order)=>{ upsertOrder(order); renderAll(); },
       'order:assigned': (order)=>{ upsertOrder(order); renderAll(); },
