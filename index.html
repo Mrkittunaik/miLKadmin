@@ -84,27 +84,27 @@
     <div class="stat-grid">
       <div class="stat-card" data-goto="orders">
         <div class="stat-ic y"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z"/></svg></div>
-        <div class="stat-value" id="statOrders">128</div>
+        <div class="stat-value" id="statOrders">0</div>
         <div class="stat-label">Orders Today</div>
-        <div class="stat-trend up">▲ 12% vs yesterday</div>
+        <div class="stat-trend" id="statOrdersTrend" style="color:var(--muted);">—</div>
       </div>
       <div class="stat-card" data-goto="users">
         <div class="stat-ic b"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
-        <div class="stat-value" id="statUsers">3,482</div>
+        <div class="stat-value" id="statUsers">0</div>
         <div class="stat-label">Total Users</div>
-        <div class="stat-trend up">▲ 8 new today</div>
+        <div class="stat-trend" id="statUsersTrend" style="color:var(--muted);">—</div>
       </div>
       <div class="stat-card" data-goto="delivery">
         <div class="stat-ic g"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 3v5h-7z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg></div>
-        <div class="stat-value" id="statRiders">24</div>
+        <div class="stat-value" id="statRiders">0</div>
         <div class="stat-label">Active Riders</div>
-        <div class="stat-trend" style="color:var(--yellow-deep);">3 pending approval</div>
+        <div class="stat-trend" id="statRidersTrend" style="color:var(--yellow-deep);">—</div>
       </div>
       <div class="stat-card" data-goto="analytics">
         <div class="stat-ic r"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 2v20M2 12h20"/></svg></div>
-        <div class="stat-value">₹48.2K</div>
+        <div class="stat-value" id="statRevenueToday">₹0</div>
         <div class="stat-label">Revenue Today</div>
-        <div class="stat-trend up">▲ 5.4%</div>
+        <div class="stat-trend" id="statRevenueTrend" style="color:var(--muted);">—</div>
       </div>
     </div>
 
