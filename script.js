@@ -426,14 +426,44 @@
      ============================================================ */
   function renderDashboard(){
     const pendingRiders = deliveryBoys.filter(d=>d.status==='pending');
-    $('#statRiders').textContent = deliveryBoys.filter(d=>d.status==='approved').length;
+    const approvedRiders = deliveryBoys.filter(d=>d.status==='approved');
+    $('#statRiders').textContent = approvedRiders.length;
+    if($('#statRidersTrend')) $('#statRidersTrend').textContent = pendingRiders.length ? `${pendingRiders.length} pending approval` : 'No pending approvals';
 
     const todayOrders = orders.filter(o=>o.date.startsWith('Today'));
+    const yesterdayOrders = orders.filter(o=>o.date.startsWith('Yesterday'));
     const deliveredToday = todayOrders.filter(o=>o.status==='delivered').length;
     const totalDelivered = orders.filter(o=>o.status==='delivered').length;
     if($('#statDeliveredToday')) $('#statDeliveredToday').textContent = deliveredToday;
     if($('#statOrdersTodayTrend')) $('#statOrdersTodayTrend').textContent = `of ${todayOrders.length} orders today`;
     if($('#statTotalDelivered')) $('#statTotalDelivered').textContent = totalDelivered;
+
+    // Orders Today card
+    if($('#statOrders')) $('#statOrders').textContent = todayOrders.length;
+    if($('#statOrdersTrend')){
+      if(yesterdayOrders.length){
+        const pct = Math.round(((todayOrders.length - yesterdayOrders.length) / yesterdayOrders.length) * 100);
+        $('#statOrdersTrend').textContent = `${pct>=0?'▲':'▼'} ${Math.abs(pct)}% vs yesterday`;
+      } else {
+        $('#statOrdersTrend').textContent = `${yesterdayOrders.length} orders yesterday`;
+      }
+    }
+
+    // Total Users card — real count + real "new today" from actual signups
+    if($('#statUsers')) $('#statUsers').textContent = users.length.toLocaleString('en-IN');
+    if($('#statUsersTrend')){
+      const newToday = users.filter(u=>u.createdAt && new Date(u.createdAt).toDateString() === new Date().toDateString()).length;
+      $('#statUsersTrend').textContent = `${newToday} new today`;
+    }
+
+    // Revenue Today card — real sum of today's non-cancelled orders
+    if($('#statRevenueToday')){
+      const revenueToday = todayOrders.filter(o=>o.status!=='cancelled').reduce((sum,o)=>sum+(o.total||0),0);
+      $('#statRevenueToday').textContent = '₹' + revenueToday.toLocaleString('en-IN');
+    }
+    if($('#statRevenueTrend') && lastDashboardStats){
+      $('#statRevenueTrend').textContent = `₹${(lastDashboardStats.revenue||0).toLocaleString('en-IN')} all-time`;
+    }
 
     const recWrap = $('#dashRecentOrders');
     recWrap.innerHTML = '';
