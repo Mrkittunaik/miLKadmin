@@ -136,6 +136,33 @@
   .section-title span{color:var(--green-dim);}
   .section-link{font-size:12px; font-weight:700; color:var(--green-dim); display:flex; align-items:center; gap:3px; cursor:pointer;}
 
+  /* ---------- DASHBOARD PANEL (Recent Orders / Pending Approvals) ----------
+     A single outer card with its own full shadow + tight 2px radius, so the
+     section reads as one cohesive block instead of loose items floating on
+     the page background. Inner padding keeps order text/labels clear of the
+     card edges — nothing touches the border on left or right. */
+  .dash-panel{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:2px;
+    box-shadow:0 4px 18px rgba(43,36,16,.10), 0 1px 3px rgba(43,36,16,.06);
+    padding:6px 14px;
+    overflow:hidden;
+  }
+  /* Items inside the panel lose their own card chrome (border/shadow/radius/
+     margin) so they sit flush as rows within the single outer shadow,
+     separated by a hairline instead of stacking separate cards. */
+  .dash-panel .order-card,
+  .dash-panel .db-card.list-card{
+    background:transparent; border:none; border-radius:0; box-shadow:none;
+    margin:0; padding:14px 0;
+  }
+  .dash-panel .order-card + .order-card,
+  .dash-panel .db-card.list-card + .db-card.list-card{
+    border-top:1px solid var(--line);
+  }
+  .dash-panel .empty-state{padding:32px 10px;}
+
   /* ---------- STAT CARDS (Dashboard) ---------- */
   .stat-grid{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
   .stat-card{
