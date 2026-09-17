@@ -278,7 +278,14 @@
     animation:slideUp .32s cubic-bezier(.22,.9,.3,1); max-height:88vh; overflow-y:auto;
     box-shadow:0 -12px 40px rgba(43,36,16,.22), 0 -2px 8px rgba(43,36,16,.10);
     transition:max-height .28s cubic-bezier(.22,.9,.3,1), border-radius .28s ease;
-    touch-action:none; /* the handle owns vertical drag; body scroll re-enabled once past the handle */
+    /* only the handle owns the vertical drag gesture (see initSheetDragGestures) —
+       the sheet body itself must stay touch-scrollable, smooth and momentum-based */
+    touch-action:pan-y;
+    -webkit-overflow-scrolling:touch;
+    overscroll-behavior:contain;
+    scroll-behavior:smooth;
+    will-change:transform;
+    transform:translateZ(0); /* promote to its own compositor layer -> smoother, no jank while dragging/scrolling */
   }
   .sheet.dragging{transition:none;}
   .sheet.expanded{max-height:96vh; border-radius:10px 10px 0 0;}
@@ -286,6 +293,7 @@
   .sheet-handle{
     width:44px; height:5px; border-radius:4px; background:var(--line); margin:2px auto 16px;
     cursor:grab; position:relative; transition:background .15s, width .15s;
+    touch-action:none; /* the handle alone owns the drag-to-close/expand gesture */
   }
   /* generous invisible hit-area so the handle is easy to grab on touch, without
      visually growing the thin bar itself */
@@ -294,7 +302,7 @@
     width:100px; height:36px;
   }
   .sheet-handle:active{cursor:grabbing; background:var(--yellow-deep); width:56px;}
-  .sheet > .sheet-body-scroll{overflow-y:auto; max-height:calc(88vh - 60px);}
+  .sheet > .sheet-body-scroll{overflow-y:auto; max-height:calc(88vh - 60px); -webkit-overflow-scrolling:touch; overscroll-behavior:contain;}
   .sheet h3{margin:0 0 16px; font-size:16.5px; font-weight:800;}
   .field{margin-bottom:14px;}
   .field label{display:block; font-size:11.5px; font-weight:700; color:var(--muted); margin-bottom:6px;}
