@@ -2594,6 +2594,7 @@
      socket can't connect.
      ============================================================ */
   let liveSocket = null;
+  let pollFallbackTimer = null;
 
   function upsertOrder(raw){
     const o = normOrder(raw);
@@ -2609,7 +2610,7 @@
   }
 
   function initLiveUpdates(){
-    liveSocket = Api.connectSocket({
+    const handlers = {
       'order:new': (order)=>{
         const o = upsertOrder(order); renderAll(); showOrderPopup(o);
         const itemsStr = (o.items||[]).map(i=>`${i.qty}× ${i.name}`).join(', ');
@@ -2710,12 +2711,19 @@
         const o = upsertOrder(order); renderAll();
         pushLiveNotification({icon:'🚨', text:`Order ${o.id} needs manual assignment — all riders declined`, sub:o.customer, action:()=>openOrderSheet(o.id)});
       }
-    });
+    };
 
-    if(!liveSocket){
-      // no socket support available — fall back to polling every 20s
-      setInterval(loadAllData, 20000);
-    }
+    // Start polling right away as a safety net — if the socket connects,
+    // we cancel this below. If it never connects, this keeps the app usable.
+    pollFallbackTimer = setInterval(loadAllData, 20000);
+
+    Api.connectSocket(handlers, (socket)=>{
+      // socket is actually connected now — stop the 20s polling burst,
+      // live events will keep the data fresh instead.
+      liveSocket = socket;
+      if(pollFallbackTimer){ clearInterval(pollFallbackTimer); pollFallbackTimer = null; }
+      loadAllData(); // one fresh sync now that we're live
+    });
   }
 
   // auto-login: if a saved session + token exist, skip the login screen entirely.
