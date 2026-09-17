@@ -288,7 +288,88 @@
   }
 
   function openSheet(id){ $(id).classList.add('show'); }
-  function closeSheet(id){ $(id).classList.remove('show'); }
+  function closeSheet(id){ $(id).classList.remove('show'); const sh = $(id).querySelector('.sheet'); if(sh) sh.classList.remove('expanded'); }
+
+  /* ---------- SHEET DRAG-TO-CLOSE / DRAG-TO-EXPAND ----------
+     Applies once to every bottom sheet in the app (product, order, user,
+     delivery-boy, plan, coupon, etc) since they all share the same
+     .sheet-backdrop > .sheet > .sheet-handle structure. Drag the handle
+     down past a threshold to close, or up to snap the sheet to full height. */
+  (function initSheetDragGestures(){
+    $all('.sheet-backdrop').forEach(backdrop=>{
+      const sheet = backdrop.querySelector('.sheet');
+      const handle = backdrop.querySelector('.sheet-handle');
+      if(!sheet || !handle) return;
+
+      let startY = 0, currentY = 0, dragging = false, startHeight = 0;
+
+      function onPointerDown(e){
+        dragging = true;
+        startY = (e.touches ? e.touches[0].clientY : e.clientY);
+        currentY = startY;
+        startHeight = sheet.getBoundingClientRect().height;
+        sheet.classList.add('dragging');
+        document.addEventListener('mousemove', onPointerMove);
+        document.addEventListener('mouseup', onPointerUp);
+        document.addEventListener('touchmove', onPointerMove, {passive:false});
+        document.addEventListener('touchend', onPointerUp);
+      }
+
+      function onPointerMove(e){
+        if(!dragging) return;
+        currentY = (e.touches ? e.touches[0].clientY : e.clientY);
+        const delta = currentY - startY; // positive = dragging down, negative = dragging up
+        if(e.cancelable) e.preventDefault();
+        if(delta > 0){
+          // dragging down: translate the sheet with the finger/cursor
+          sheet.style.transform = `translateY(${delta}px)`;
+        } else {
+          // dragging up: grow toward the expanded max-height, capped so it
+          // doesn't overshoot past the CSS-defined expanded state
+          const growth = Math.min(-delta, window.innerHeight * 0.5);
+          sheet.style.transform = `translateY(${-growth * 0.15}px)`; // subtle lift while dragging
+        }
+      }
+
+      function onPointerUp(){
+        if(!dragging) return;
+        dragging = false;
+        sheet.classList.remove('dragging');
+        sheet.style.transform = '';
+        const delta = currentY - startY;
+        const CLOSE_THRESHOLD = 90;   // px pulled down before it counts as "close"
+        const EXPAND_THRESHOLD = -60; // px pulled up before it counts as "expand"
+
+        if(delta > CLOSE_THRESHOLD){
+          backdrop.classList.remove('show');
+          sheet.classList.remove('expanded');
+        } else if(delta < EXPAND_THRESHOLD){
+          sheet.classList.add('expanded');
+        }
+        // small pulls that cross neither threshold just settle back in place —
+        // the .sheet transition (re-enabled once .dragging is removed) handles it
+
+        document.removeEventListener('mousemove', onPointerMove);
+        document.removeEventListener('mouseup', onPointerUp);
+        document.removeEventListener('touchmove', onPointerMove);
+        document.removeEventListener('touchend', onPointerUp);
+      }
+
+      handle.addEventListener('mousedown', onPointerDown);
+      handle.addEventListener('touchstart', onPointerDown, {passive:true});
+
+      // Tapping the handle without dragging toggles expanded/collapsed —
+      // a quick tap is a natural fallback to the drag gesture.
+      let downTime = 0;
+      handle.addEventListener('mousedown', ()=>{ downTime = Date.now(); });
+      handle.addEventListener('touchstart', ()=>{ downTime = Date.now(); }, {passive:true});
+      handle.addEventListener('click', ()=>{
+        if(Date.now() - downTime < 200){ // treat as a tap, not the end of a drag
+          sheet.classList.toggle('expanded');
+        }
+      });
+    });
+  })();
 
   /* ============================================================
      NAVIGATION
