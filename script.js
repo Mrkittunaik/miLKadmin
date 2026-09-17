@@ -2518,7 +2518,7 @@
     $all('.screen').forEach(s=>s.classList.remove('active'));
     $('#screen-login').style.display = 'flex';
     $('#screen-login').classList.add('active');
-    $('#loginEmail').value = DEMO_ADMIN_EMAIL;
+    $('#loginEmail').value = 'admin@pakkadoodhwala.in';
     $('#loginPass').value = '';
     showToast('Logged out');
   });
