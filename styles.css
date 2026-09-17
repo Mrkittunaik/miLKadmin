@@ -268,25 +268,44 @@
 
   /* ---------- FORM / MODAL (add/edit product, user detail, etc) ---------- */
   .sheet-backdrop{
-    position:absolute; inset:0; background:rgba(43,36,16,.45); z-index:60; display:none;
+    position:absolute; inset:0; background:rgba(43,36,16,.5); backdrop-filter:blur(2px); z-index:60; display:none;
     align-items:flex-end; justify-content:center;
   }
   .sheet-backdrop.show{display:flex; animation:fadeIn .2s ease;}
   @keyframes fadeIn{from{opacity:0;} to{opacity:1;}}
   .sheet{
-    background:var(--card); width:100%; max-width:480px; border-radius:16px 16px 0 0; padding:20px 20px 26px;
-    animation:slideUp .28s cubic-bezier(.22,.9,.3,1); max-height:88vh; overflow-y:auto;
+    background:var(--card); width:100%; max-width:480px; border-radius:18px 18px 0 0; padding:10px 20px 26px;
+    animation:slideUp .32s cubic-bezier(.22,.9,.3,1); max-height:88vh; overflow-y:auto;
+    box-shadow:0 -12px 40px rgba(43,36,16,.22), 0 -2px 8px rgba(43,36,16,.10);
+    transition:max-height .28s cubic-bezier(.22,.9,.3,1), border-radius .28s ease;
+    touch-action:none; /* the handle owns vertical drag; body scroll re-enabled once past the handle */
   }
+  .sheet.dragging{transition:none;}
+  .sheet.expanded{max-height:96vh; border-radius:10px 10px 0 0;}
   @keyframes slideUp{from{transform:translateY(100%);} to{transform:translateY(0);}}
-  .sheet-handle{width:38px; height:4px; border-radius:3px; background:var(--line); margin:0 auto 14px;}
+  .sheet-handle{
+    width:44px; height:5px; border-radius:4px; background:var(--line); margin:2px auto 16px;
+    cursor:grab; position:relative; transition:background .15s, width .15s;
+  }
+  /* generous invisible hit-area so the handle is easy to grab on touch, without
+     visually growing the thin bar itself */
+  .sheet-handle::before{
+    content:''; position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+    width:100px; height:36px;
+  }
+  .sheet-handle:active{cursor:grabbing; background:var(--yellow-deep); width:56px;}
+  .sheet > .sheet-body-scroll{overflow-y:auto; max-height:calc(88vh - 60px);}
   .sheet h3{margin:0 0 16px; font-size:16.5px; font-weight:800;}
   .field{margin-bottom:14px;}
   .field label{display:block; font-size:11.5px; font-weight:700; color:var(--muted); margin-bottom:6px;}
   .field input, .field select, .field textarea{
-    width:100%; padding:11px 13px; border-radius:5px; border:1.5px solid var(--line); font-size:13.5px;
+    width:100%; padding:12px 14px; border-radius:8px; border:1.5px solid var(--line); font-size:13.5px;
     font-family:inherit; color:var(--ink); background:var(--card-hi); outline:none;
+    transition:border-color .15s, box-shadow .15s;
   }
-  .field input:focus, .field select:focus, .field textarea:focus{border-color:var(--yellow-deep);}
+  .field input:focus, .field select:focus, .field textarea:focus{
+    border-color:var(--yellow-deep); box-shadow:0 0 0 3px rgba(232,164,0,.12);
+  }
   .field textarea{resize:vertical; min-height:64px;}
   .field-row{display:flex; gap:10px;}
   .field-row .field{flex:1;}
