@@ -155,14 +155,31 @@
     markPaymentStatus: (id, status) => patch(`/payments/${id}/status`, { status }),
 
     // ---- realtime ----
-    connectSocket(handlers) {
-      if (typeof io === 'undefined') {
-        console.warn('Socket.IO client not loaded — live updates disabled, falling back to polling.');
-        return null;
-      }
-      const socket = io(API_BASE.replace(/\/api$/, ''), { auth: { token: getToken() } });
-      Object.keys(handlers || {}).forEach(evt => socket.on(evt, handlers[evt]));
-      return socket;
+    // If the socket.io client script hasn't finished loading yet (e.g. it was
+    // slow/timed out because the backend was cold-starting at the same time),
+    // don't give up forever — retry for a while, then let the caller know so
+    // it can fall back to polling in the meantime.
+    connectSocket(handlers, onReady) {
+      let attempts = 0;
+      const maxAttempts = 15; // ~30s of retrying at 2s apart
+      const tryConnect = () => {
+        if (typeof io === 'undefined') {
+          attempts++;
+          if (attempts >= maxAttempts) {
+            console.warn('Socket.IO client still not loaded after retries — staying on polling.');
+            return;
+          }
+          setTimeout(tryConnect, 2000);
+          return;
+        }
+        const socket = io(API_BASE.replace(/\/api$/, ''), { auth: { token: getToken() } });
+        Object.keys(handlers || {}).forEach(evt => socket.on(evt, handlers[evt]));
+        if (typeof onReady === 'function') {
+          socket.on('connect', () => onReady(socket));
+        }
+      };
+      tryConnect();
+      return null; // caller gets the real socket later via onReady, same as before it just started null
     }
   };
 
