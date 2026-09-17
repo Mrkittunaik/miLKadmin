@@ -79,7 +79,12 @@
     });
   }
 
+  let _loadAllDataInFlight = false;
   async function loadAllData(){
+    // Never let two loads run at once — a slow/failed cycle overlapping the
+    // next poll tick is exactly what turns 13 requests into a flood.
+    if (_loadAllDataInFlight) return;
+    _loadAllDataInFlight = true;
     try {
       const [p, o, d, u, pl, sub, cp, bn, ct, sf, dash, zn, pay] = await Promise.all([
         Api.listProducts(), Api.listOrders(), Api.listDeliveryBoys(), Api.listUsers(),
@@ -112,9 +117,18 @@
       plans.forEach(pn=> pn.subs = subscriptions.filter(s=>s.planId===pn.id && s.active).length );
       lastDashboardStats = dash;
       renderAll();
+      _pollBackoffMs = 20000; // success — reset the poll interval back to normal
     } catch(err){
       console.error('Failed to load data from backend:', err);
-      showToast('Could not reach backend — check your connection');
+      const isRateLimited = /429|too many/i.test(err.message || '');
+      showToast(isRateLimited ? 'Rate limited — slowing down refresh' : 'Could not reach backend — check your connection');
+      if (isRateLimited) {
+        // back off hard instead of retrying every 20s and digging the hole deeper
+        _pollBackoffMs = Math.min(_pollBackoffMs * 2, 180000); // cap at 3 min
+        restartPollFallback();
+      }
+    } finally {
+      _loadAllDataInFlight = false;
     }
   }
   let lastDashboardStats = null;
@@ -2595,6 +2609,11 @@
      ============================================================ */
   let liveSocket = null;
   let pollFallbackTimer = null;
+  let _pollBackoffMs = 20000;
+  function restartPollFallback(){
+    if (pollFallbackTimer) clearInterval(pollFallbackTimer);
+    pollFallbackTimer = setInterval(loadAllData, _pollBackoffMs);
+  }
 
   function upsertOrder(raw){
     const o = normOrder(raw);
@@ -2715,7 +2734,7 @@
 
     // Start polling right away as a safety net — if the socket connects,
     // we cancel this below. If it never connects, this keeps the app usable.
-    pollFallbackTimer = setInterval(loadAllData, 20000);
+    restartPollFallback();
 
     Api.connectSocket(handlers, (socket)=>{
       // socket is actually connected now — stop the 20s polling burst,
