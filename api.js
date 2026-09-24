@@ -150,6 +150,17 @@
 
     // ---- subscriptions ----
     setSubscriptionPaymentStatus: (id, paymentStatus) => patch(`/subscriptions/${id}/payment-status`, { paymentStatus }),
+    listSubscriptionDeliveries: (id) => get(`/subscriptions/${id}/deliveries`),
+    assignSubscriptionDeliveryBoy: (id, deliveryBoyId) => patch(`/subscriptions/${id}/assign-delivery-boy`, { deliveryBoyId }),
+
+    // ---- bottle tickets (broken-bottle claims raised by delivery partners) ----
+    listBottleTickets: (status) => get(`/bottle-tickets${status && status !== 'all' ? '?status=' + status : ''}`),
+    resolveBottleTicket: (id, data) => patch(`/bottle-tickets/${id}/resolve`, data),
+
+    // ---- wallet (deposits, refunds, manual adjustments — always logged, never a silent balance edit) ----
+    getUserWallet: (id) => get(`/users/${id}/wallet`),
+    getUserWalletTransactions: (id) => get(`/users/${id}/wallet/transactions`),
+    adjustUserWallet: (id, data) => post(`/users/${id}/wallet/adjust`, data),
 
     // ---- payments ----
     markPaymentStatus: (id, status) => patch(`/payments/${id}/status`, { status }),
