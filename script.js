@@ -75,7 +75,43 @@
       joined: u.joined || fmtRelativeDate(u.createdAt),
       orders: u.orders != null ? u.orders : (u.ordersCount || 0),
       avatar: toAbsoluteUploadUrl(u.avatar),
-      idProofUrl: toAbsoluteUploadUrl(u.idProofUrl)
+      idProofUrl: toAbsoluteUploadUrl(u.idProofUrl),
+      walletBalance: u.walletBalance != null ? u.walletBalance : 0
+    });
+  }
+  function toAbsoluteUploadUrlList(arr){
+    return Array.isArray(arr) ? arr.map(toAbsoluteUploadUrl) : [];
+  }
+  // broken-bottle claim raised by a delivery partner from the field
+  function normBottleTicket(t){
+    const custObj = t.customer && typeof t.customer==='object' ? t.customer : null;
+    const dbObj = t.deliveryBoy && typeof t.deliveryBoy==='object' ? t.deliveryBoy : null;
+    return Object.assign({}, t, {
+      id: t._id || t.id,
+      customerId: custObj ? custObj._id : t.customer,
+      customerName: t.customerName || (custObj ? custObj.name : ''),
+      deliveryBoyId: dbObj ? dbObj._id : t.deliveryBoy,
+      deliveryBoyName: t.deliveryBoyName || (dbObj ? dbObj.name : ''),
+      photo: toAbsoluteUploadUrl(t.photo),
+      status: t.status || 'open', // 'open' | 'approved' | 'rejected'
+      date: t.date || fmtRelativeDate(t.createdAt)
+    });
+  }
+  // subscription (bottle-exchange) delivery history entry
+  function normSubDelivery(x){
+    return Object.assign({}, x, {
+      id: x._id || x.id,
+      date: x.date || fmtRelativeDate(x.createdAt),
+      newBottlePhoto: toAbsoluteUploadUrl(x.newBottlePhoto),
+      oldBottlePhoto: toAbsoluteUploadUrl(x.oldBottlePhoto),
+      deliveryBoyName: x.deliveryBoyName || (x.deliveryBoy && typeof x.deliveryBoy==='object' ? x.deliveryBoy.name : '')
+    });
+  }
+  // wallet transaction (deposit/refund/adjustment/plan credit) — always the result of a logged entry, never a raw balance edit
+  function normWalletTxn(x){
+    return Object.assign({}, x, {
+      id: x._id || x.id,
+      date: x.date || fmtRelativeDate(x.createdAt)
     });
   }
 
@@ -86,22 +122,34 @@
     if (_loadAllDataInFlight) return;
     _loadAllDataInFlight = true;
     try {
-      const [p, o, d, u, pl, sub, cp, bn, ct, sf, dash, zn, pay] = await Promise.all([
+      const [p, o, d, u, pl, sub, cp, bn, ct, sf, dash, zn, pay, tk] = await Promise.all([
         Api.listProducts(), Api.listOrders(), Api.listDeliveryBoys(), Api.listUsers(),
         Api.listPlansAll(), Api.listSubscriptions(), Api.listCoupons(),
         Api.listBannersAll(), Api.listCategoriesAll(), Api.listStaff(), Api.dashboardOverview(),
-        Api.listZones(), Api.listPayments()
+        Api.listZones(), Api.listPayments(), Api.listBottleTickets('all').catch(()=>[])
       ]);
       products = p.map(normProduct);
       orders = o.map(normOrder);
       deliveryBoys = d.map(normDeliveryBoy);
       users = u.map(normUser);
       plans = pl.map(x=>Object.assign({}, x, {id:x._id||x.id}));
-      subscriptions = sub.map(x=>Object.assign({}, x, {
-        id:x._id||x.id,
-        customerId: x.customer && typeof x.customer==='object' ? x.customer._id : x.customer,
-        planId: x.plan && typeof x.plan==='object' ? x.plan._id : x.plan
-      }));
+      subscriptions = sub.map(x=>{
+        const customerObj = x.customer && typeof x.customer==='object' ? x.customer : null;
+        const dbObj = x.deliveryBoy && typeof x.deliveryBoy==='object' ? x.deliveryBoy : null;
+        return Object.assign({}, x, {
+          id:x._id||x.id,
+          customerId: customerObj ? customerObj._id : x.customer,
+          customerName: x.customerName || (customerObj ? customerObj.name : x.customer),
+          planId: x.plan && typeof x.plan==='object' ? x.plan._id : x.plan,
+          // bottle-exchange (subscription) delivery fields — sent by the delivery-partner app each morning
+          zone: x.zone || (customerObj && customerObj.address ? zoneOf(customerObj.address) : 'Unassigned'),
+          deliveryBoyId: x.deliveryBoyId || (dbObj ? dbObj._id : x.deliveryBoy) || null,
+          todayStatus: x.todayStatus || 'pending', // 'delivered' | 'pending' | 'issue'
+          bottlesGivenToday: x.bottlesGivenToday || 0,
+          bottlesCollectedToday: x.bottlesCollectedToday || 0,
+          pendingBottles: x.pendingBottles || 0
+        });
+      });
       coupons = cp.map(x=>Object.assign({}, x, {id:x._id||x.id, limit:x.usageLimit||x.limit||0, used:x.usedCount||x.used||0}));
       banners = bn.map(x=>Object.assign({}, x, {id:x._id||x.id}));
       categories = ct.map(x=>Object.assign({}, x, {id:x._id||x.id}));
@@ -113,6 +161,7 @@
         customerName: x.customer && typeof x.customer==='object' ? x.customer.name : '',
         orderId: x.order && typeof x.order==='object' ? x.order._id : x.order
       }));
+      bottleTickets = (tk||[]).map(normBottleTicket);
       // recompute plan subscriber counts from real subscriptions
       plans.forEach(pn=> pn.subs = subscriptions.filter(s=>s.planId===pn.id && s.active).length );
       lastDashboardStats = dash;
@@ -259,6 +308,15 @@
   let activeOrderId = null;
   let activeDbId = null;
   let activeUserId = null;
+  let bottleTickets = [];
+  let currentTicketFilter = 'open';
+  let currentSubZoneFilter = 'all';
+  let currentSubDbFilter = 'all';
+  let currentSubStatusFilter = 'all';
+  let activeSubDelId = null;
+  let activeTicketId = null;
+  let activeWalletUserId = null;
+  let subDeliveryHistoryCache = {};
   let pendingImages = [];
   let pendingBannerImage = null;
   let calCurrentMonth = new Date(2026, 7, 1); // August 2026
@@ -398,7 +456,10 @@
       categories:['Categories','Product category management'],
       payments:['Payments & Payouts','Settlements and rider payouts'],
       reports:['Reports & Exports','Download business reports'],
-      staff:['Staff & Roles','Admin team & permissions']
+      staff:['Staff & Roles','Admin team & permissions'],
+      substdeliveries:['Subscription Deliveries','Daily bottle-exchange routes'],
+      tickets:['Bottle Tickets','Broken bottle claims'],
+      wallet:['Wallet','Customer balances & adjustments']
     };
     if(titles[screenName]){
       $('#topbarTitle').textContent = titles[screenName][0];
@@ -420,7 +481,7 @@
   $all('[data-goto]').forEach(el=>{
     el.addEventListener('click', ()=>{
       const screenName = el.dataset.goto;
-      const knownScreens = ['dashboard','orders','products','delivery','users','paymgr','analytics','plans','calendar','zones','more','coupons','banners','categories','payments','reports','staff'];
+      const knownScreens = ['dashboard','orders','products','delivery','users','paymgr','analytics','plans','calendar','zones','more','coupons','banners','categories','payments','reports','staff','substdeliveries','tickets','wallet'];
       if(knownScreens.includes(screenName)){
         goto(screenName);
         if(el.dataset.filter){
@@ -444,6 +505,10 @@
       currentOrderFilter = filter;
       $all('#orderChips .chip').forEach(c=>c.classList.toggle('active', c.dataset.status===filter));
       renderOrders();
+    } else if(screenName === 'substdeliveries'){
+      currentSubStatusFilter = filter;
+      $all('#subStatusChips .chip').forEach(c=>c.classList.toggle('active', c.dataset.substatus===filter));
+      renderSubscriptionDeliveries();
     }
   }
 
@@ -1208,6 +1273,15 @@
         </div>
         <input type="file" id="userAvatarInput" accept="image/*" style="margin-top:8px;">
       </div>
+      <div class="field"><label>Wallet</label>
+        <div class="list-card" id="userWalletBox" style="margin-bottom:2px;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <b style="font-size:15px;">₹${(u.walletBalance||0).toLocaleString('en-IN')}</b>
+            <button class="btn-secondary" id="userWalletAdjustBtn" style="flex:0; padding:6px 12px; font-size:11.5px;">Adjust</button>
+          </div>
+          <div id="userWalletTxns" style="margin-top:8px; font-size:11px; color:var(--muted);">Loading transactions…</div>
+        </div>
+      </div>
       <div class="field"><label>Recent Orders</label></div>
       ${userOrders.length ? userOrders.map(o=>`<div class="list-card" style="margin-bottom:8px;"><div style="display:flex; justify-content:space-between;"><b style="font-size:12.5px;">#${o.id}</b><span class="order-status ${o.status}">${statusLabel[o.status]}</span></div><div style="font-size:11.5px; color:var(--muted); margin-top:4px;">${o.date} &middot; ₹${o.total}</div></div>`).join('') : '<div style="font-size:12px; color:var(--muted);">No recent orders on this device.</div>'}
       <div style="display:flex; gap:8px; margin-top:10px;">
@@ -1217,6 +1291,17 @@
       <button class="btn-danger-outline" id="userDeleteBtn" style="margin-top:8px; width:100%;">Delete Account</button>
     `;
     openSheet('#userSheetBackdrop');
+    Api.getUserWalletTransactions(u.id).then(txns=>{
+      const list = (txns||[]).map(normWalletTxn).slice(0,5);
+      const box = $('#userWalletTxns');
+      if(!box) return;
+      box.innerHTML = list.length ? list.map(t=>`
+        <div style="display:flex; justify-content:space-between; padding:4px 0; border-top:1px dashed var(--line);">
+          <span>${t.reason || t.note || 'Transaction'} &middot; ${t.date}</span>
+          <b style="color:${t.amount<0?'var(--danger)':'var(--green-dim)'};">${t.amount<0?'-':'+'}₹${Math.abs(t.amount)}</b>
+        </div>`).join('') : 'No wallet transactions yet.';
+    }).catch(()=>{ const box=$('#userWalletTxns'); if(box) box.textContent = 'Could not load transactions.'; });
+    $('#userWalletAdjustBtn').addEventListener('click', ()=>openWalletAdjustSheet(u.id));
     $('#userSaveBtn').addEventListener('click', async ()=>{
       try{
         const updated = await Api.updateUser(u.id, {
@@ -1283,6 +1368,372 @@
   }
   $('#userSheetCloseBtn').addEventListener('click', ()=>closeSheet('#userSheetBackdrop'));
   $('#userSheetBackdrop').addEventListener('click', e=>{ if(e.target===e.currentTarget) closeSheet('#userSheetBackdrop'); });
+
+  /* ============================================================
+     SUBSCRIPTION DELIVERIES — daily bottle-exchange (not a priced order):
+     new sealed bottle out, previous day's empty bottle back, every morning.
+     ============================================================ */
+  const subStatusMeta = {
+    delivered: {label:'Delivered', cls:'approved'},
+    pending:   {label:'Pending',   cls:'pending'},
+    issue:     {label:'Issue',     cls:'rejected'}
+  };
+
+  function buildSubFilterChips(){
+    const zoneRow = $('#subZoneChips');
+    if(zoneRow && zoneRow.children.length <= 1){
+      zones.forEach(z=>{
+        const c = document.createElement('div');
+        c.className = 'chip'; c.dataset.subzone = z.name; c.textContent = z.name;
+        zoneRow.appendChild(c);
+      });
+      $all('#subZoneChips .chip').forEach(chip=>chip.addEventListener('click', ()=>{
+        $all('#subZoneChips .chip').forEach(c=>c.classList.remove('active'));
+        chip.classList.add('active');
+        currentSubZoneFilter = chip.dataset.subzone;
+        renderSubscriptionDeliveries();
+      }));
+    }
+    const dbRow = $('#subDbChips');
+    if(dbRow && dbRow.children.length <= 1){
+      deliveryBoys.filter(d=>d.status==='approved').forEach(d=>{
+        const c = document.createElement('div');
+        c.className = 'chip'; c.dataset.subdb = d.id; c.textContent = d.name;
+        dbRow.appendChild(c);
+      });
+      $all('#subDbChips .chip').forEach(chip=>chip.addEventListener('click', ()=>{
+        $all('#subDbChips .chip').forEach(c=>c.classList.remove('active'));
+        chip.classList.add('active');
+        currentSubDbFilter = chip.dataset.subdb;
+        renderSubscriptionDeliveries();
+      }));
+    }
+  }
+
+  function buildSubDelCard(s){
+    const div = document.createElement('div');
+    div.className = 'list-card user-card';
+    const meta = subStatusMeta[s.todayStatus] || subStatusMeta.pending;
+    const plan = s.planId ? plans.find(p=>p.id===s.planId) : null;
+    const db = deliveryBoys.find(d=>d.id===s.deliveryBoyId);
+    div.innerHTML = `
+      <div class="user-avatar">${initials(s.customerName||'?')}</div>
+      <div class="user-info">
+        <div class="user-name">${s.customerName || 'Customer'}</div>
+        <div class="user-meta">${plan ? plan.name : 'Custom plan'} &middot; ${s.zone}</div>
+        <div style="font-size:11.5px; color:var(--muted); margin-top:3px;">
+          Rider: ${db ? db.name : 'Unassigned'} &middot; ${s.bottlesGivenToday||0} given / ${s.bottlesCollectedToday||0} collected today
+        </div>
+        ${s.pendingBottles>0 ? `<div style="font-size:11px; color:var(--danger); margin-top:2px; font-weight:700;">${s.pendingBottles} bottle(s) carried over</div>` : ''}
+      </div>
+      <div class="db-status ${meta.cls}">${meta.label}</div>
+    `;
+    div.addEventListener('click', ()=>openSubDetailSheet(s.id));
+    return div;
+  }
+
+  function renderSubscriptionDeliveries(){
+    buildSubFilterChips();
+    const list = $('#subDelList');
+    if(!list) return;
+    list.innerHTML = '';
+    let filtered = subscriptions.filter(s=>s.active);
+    if(currentSubZoneFilter !== 'all') filtered = filtered.filter(s=>s.zone===currentSubZoneFilter);
+    if(currentSubDbFilter !== 'all') filtered = filtered.filter(s=>s.deliveryBoyId===currentSubDbFilter);
+    if(currentSubStatusFilter !== 'all') filtered = filtered.filter(s=>s.todayStatus===currentSubStatusFilter);
+    $('#subDelCount').textContent = filtered.length;
+    if(filtered.length===0){
+      list.innerHTML = '<div class="empty-state"><div class="empty-state-title">No subscriptions here</div><div class="empty-state-sub">Try a different filter</div></div>';
+      return;
+    }
+    filtered.forEach(s=>list.appendChild(buildSubDelCard(s)));
+  }
+
+  $all('#subStatusChips .chip').forEach(chip=>{
+    chip.addEventListener('click', ()=>{
+      $all('#subStatusChips .chip').forEach(c=>c.classList.remove('active'));
+      chip.classList.add('active');
+      currentSubStatusFilter = chip.dataset.substatus;
+      renderSubscriptionDeliveries();
+    });
+  });
+
+  function openSubDetailSheet(id){
+    activeSubDelId = id;
+    const s = subscriptions.find(x=>x.id===id);
+    if(!s) return;
+    $('#subDetailSheetTitle').textContent = s.customerName || 'Subscription';
+    const assignSelect = `
+      <select id="subAssignDbSelect">
+        <option value="">— Unassigned —</option>
+        ${deliveryBoys.filter(d=>d.status==='approved').map(d=>`<option value="${d.id}" ${s.deliveryBoyId===d.id?'selected':''}>${d.name} (${d.area})</option>`).join('')}
+      </select>`;
+    $('#subDetailSheetBody').innerHTML = `
+      <div class="field"><label>Zone</label><input type="text" value="${s.zone}" readonly></div>
+      <div class="field"><label>Assign Delivery Partner</label>${assignSelect}</div>
+      <button class="btn-secondary" id="subAssignSaveBtn" style="width:100%; margin-bottom:14px;">Save Assignment</button>
+      <div class="field"><label>Delivery History</label></div>
+      <div id="subHistoryList"><div class="empty-state-sub" style="padding:20px 0;">Loading history…</div></div>
+    `;
+    openSheet('#subDetailSheetBackdrop');
+    $('#subAssignSaveBtn').addEventListener('click', async ()=>{
+      const dbId = $('#subAssignDbSelect').value || null;
+      try{
+        const updated = await Api.assignSubscriptionDeliveryBoy(s.id, dbId);
+        Object.assign(s, updated ? {deliveryBoyId: updated.deliveryBoyId || dbId} : {deliveryBoyId: dbId});
+        showToast('Delivery partner assigned');
+        renderSubscriptionDeliveries();
+      } catch(err){ showToast(err.message || 'Could not assign delivery partner'); }
+    });
+    const loadHistory = subDeliveryHistoryCache[id] ? Promise.resolve(subDeliveryHistoryCache[id]) :
+      Api.listSubscriptionDeliveries(id).then(rows=>{
+        const norm = (rows||[]).map(normSubDelivery);
+        subDeliveryHistoryCache[id] = norm;
+        return norm;
+      });
+    loadHistory.then(history=>{
+      const box = $('#subHistoryList');
+      if(!box) return;
+      if(!history.length){ box.innerHTML = '<div class="empty-state-sub" style="padding:20px 0;">No delivery history yet.</div>'; return; }
+      box.innerHTML = history.map(h=>`
+        <div class="list-card" style="margin-bottom:8px;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <b style="font-size:12.5px;">${h.date}</b>
+            <span style="font-size:11px; color:var(--muted);">${h.deliveryBoyName||'—'}</span>
+          </div>
+          <div style="display:flex; gap:8px; margin-top:8px;">
+            ${h.newBottlePhoto ? `<img src="${h.newBottlePhoto}" style="width:56px;height:56px;border-radius:6px;object-fit:cover;" alt="new bottle">` : ''}
+            ${h.oldBottlePhoto ? `<img src="${h.oldBottlePhoto}" style="width:56px;height:56px;border-radius:6px;object-fit:cover;" alt="old bottle">` : ''}
+            <div style="font-size:11px; color:var(--muted);">
+              Qty collected: ${h.quantityCollected != null ? h.quantityCollected : '—'}<br>
+              ${h.shortfall ? `<span style="color:var(--danger); font-weight:700;">Shortfall: ${h.shortfall}</span>` : 'No shortfall'}
+            </div>
+          </div>
+        </div>`).join('');
+    }).catch(()=>{ const box=$('#subHistoryList'); if(box) box.innerHTML = '<div class="empty-state-sub" style="padding:20px 0;">Could not load history.</div>'; });
+  }
+  $('#subDetailCloseBtn').addEventListener('click', ()=>closeSheet('#subDetailSheetBackdrop'));
+  $('#subDetailSheetBackdrop').addEventListener('click', e=>{ if(e.target===e.currentTarget) closeSheet('#subDetailSheetBackdrop'); });
+
+  function renderDashboardPendingBottles(){
+    const box = $('#dashPendingBottles');
+    if(!box) return;
+    const carrying = subscriptions.filter(s=>s.pendingBottles>0).sort((a,b)=>b.pendingBottles-a.pendingBottles).slice(0,5);
+    if(!carrying.length){ box.innerHTML = '<div class="empty-state" style="padding:24px 10px;"><div class="empty-state-title">All clear</div><div class="empty-state-sub">No customers carrying pending bottles.</div></div>'; return; }
+    box.innerHTML = '';
+    carrying.forEach(s=>box.appendChild(buildSubDelCard(s)));
+  }
+
+  /* ============================================================
+     BOTTLE TICKETS — broken-bottle claims raised by delivery partners
+     ============================================================ */
+  const ticketStatusMeta = {
+    open:     {label:'Open',     cls:'pending'},
+    approved: {label:'Approved', cls:'approved'},
+    rejected: {label:'Rejected', cls:'rejected'}
+  };
+
+  function buildTicketCard(t){
+    const div = document.createElement('div');
+    div.className = 'list-card user-card';
+    const meta = ticketStatusMeta[t.status] || ticketStatusMeta.open;
+    div.innerHTML = `
+      <div class="user-avatar">${initials(t.customerName||'?')}</div>
+      <div class="user-info">
+        <div class="user-name">${t.customerName||'Customer'}</div>
+        <div class="user-meta">${t.deliveryBoyName||'Unknown rider'} &middot; ${t.date}</div>
+        ${t.note ? `<div style="font-size:11.5px; color:var(--muted); margin-top:3px;">${t.note}</div>` : ''}
+      </div>
+      <div class="db-status ${meta.cls}">${meta.label}</div>
+    `;
+    div.addEventListener('click', ()=>openTicketSheet(t.id));
+    return div;
+  }
+
+  function renderBottleTickets(){
+    const list = $('#ticketList');
+    if(!list) return;
+    list.innerHTML = '';
+    const filtered = currentTicketFilter === 'all' ? bottleTickets : bottleTickets.filter(t=>t.status===currentTicketFilter);
+    $('#ticketCount').textContent = filtered.length;
+    const openCount = bottleTickets.filter(t=>t.status==='open').length;
+    const badge = $('#navTicketsBadge');
+    if(badge){ badge.style.display = openCount>0 ? 'flex' : 'none'; badge.textContent = openCount; }
+    if(filtered.length===0){
+      list.innerHTML = '<div class="empty-state"><div class="empty-state-title">No tickets here</div><div class="empty-state-sub">Try a different filter</div></div>';
+      return;
+    }
+    filtered.forEach(t=>list.appendChild(buildTicketCard(t)));
+  }
+
+  $all('#ticketChips .chip').forEach(chip=>{
+    chip.addEventListener('click', ()=>{
+      $all('#ticketChips .chip').forEach(c=>c.classList.remove('active'));
+      chip.classList.add('active');
+      currentTicketFilter = chip.dataset.tstatus;
+      renderBottleTickets();
+    });
+  });
+
+  function openTicketSheet(id){
+    activeTicketId = id;
+    const t = bottleTickets.find(x=>x.id===id);
+    if(!t) return;
+    $('#ticketSheetTitle').textContent = 'Ticket — ' + (t.customerName||'Customer');
+    const meta = ticketStatusMeta[t.status] || ticketStatusMeta.open;
+    $('#ticketSheetBody').innerHTML = `
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+        <b style="font-size:13px;">${t.customerName||'Customer'}</b>
+        <span class="db-status ${meta.cls}">${meta.label}</span>
+      </div>
+      <div class="field"><label>Delivery Partner</label><input type="text" value="${t.deliveryBoyName||'—'}" readonly></div>
+      <div class="field"><label>Date</label><input type="text" value="${t.date}" readonly></div>
+      <div class="field"><label>Partner's Note</label><input type="text" value="${t.note||t.reason||'—'}" readonly></div>
+      ${t.photo ? `<div class="field"><label>Photo</label><img src="${t.photo}" style="width:100%; max-height:220px; object-fit:cover; border-radius:8px;"></div>` : ''}
+      ${t.status==='open' ? `
+        <div class="field"><label>Wallet Deduction (₹, optional)</label><input type="number" id="ticketDeductAmount" placeholder="0" min="0"></div>
+        <div class="field"><label>Admin Note (optional)</label><input type="text" id="ticketAdminNote" placeholder="Add a note"></div>
+        <div style="display:flex; gap:8px; margin-top:10px;">
+          <button class="btn-secondary" id="ticketApproveBtn" style="flex:1;">Approve</button>
+          <button class="btn-danger-outline" id="ticketRejectBtn" style="flex:1;">Reject</button>
+        </div>
+      ` : `
+        <div class="field"><label>Resolution</label>
+          <div class="list-card">
+            <div style="font-size:12px;">Resolved by ${t.resolvedBy||'admin'} on ${t.resolvedAt ? fmtRelativeDate(t.resolvedAt) : t.date}</div>
+            ${t.deductedAmount ? `<div style="font-size:12px; color:var(--danger); margin-top:4px; font-weight:700;">₹${t.deductedAmount} deducted from wallet</div>` : ''}
+            ${t.adminNote ? `<div style="font-size:11.5px; color:var(--muted); margin-top:4px;">${t.adminNote}</div>` : ''}
+          </div>
+        </div>
+      `}
+    `;
+    openSheet('#ticketSheetBackdrop');
+    const approveBtn = $('#ticketApproveBtn');
+    const rejectBtn = $('#ticketRejectBtn');
+    async function resolve(status){
+      const amount = Number($('#ticketDeductAmount')?.value || 0);
+      const adminNote = $('#ticketAdminNote')?.value || '';
+      try{
+        const updated = await Api.resolveBottleTicket(t.id, {
+          status,
+          deductedAmount: status==='approved' ? amount : 0,
+          adminNote
+        });
+        Object.assign(t, normBottleTicket(updated || Object.assign({}, t, {status, deductedAmount: status==='approved'?amount:0, adminNote})));
+        if(status==='approved' && amount>0 && t.customerId){
+          const u = users.find(x=>x.id===t.customerId);
+          if(u) u.walletBalance = (u.walletBalance||0) - amount;
+        }
+        closeSheet('#ticketSheetBackdrop');
+        renderAll();
+        showToast(status==='approved' ? 'Ticket approved' : 'Ticket rejected');
+      } catch(err){ showToast(err.message || 'Could not resolve ticket'); }
+    }
+    if(approveBtn) approveBtn.addEventListener('click', ()=>resolve('approved'));
+    if(rejectBtn) rejectBtn.addEventListener('click', ()=>resolve('rejected'));
+  }
+  $('#ticketSheetCloseBtn').addEventListener('click', ()=>closeSheet('#ticketSheetBackdrop'));
+  $('#ticketSheetBackdrop').addEventListener('click', e=>{ if(e.target===e.currentTarget) closeSheet('#ticketSheetBackdrop'); });
+
+  /* ============================================================
+     WALLET MANAGEMENT — deposits, refunds, adjustments; always a
+     logged transaction, never a silent balance edit.
+     ============================================================ */
+  function renderWallet(){
+    const holders = users.filter(u=>(u.walletBalance||0) !== 0);
+    const liability = users.reduce((sum,u)=>sum + (u.walletBalance||0), 0);
+    $('#walletLiability').textContent = '₹' + liability.toLocaleString('en-IN');
+    $('#walletHolders').textContent = holders.length;
+    const list = $('#walletCustList');
+    if(!list) return;
+    list.innerHTML = '';
+    if(!holders.length){
+      list.innerHTML = '<div class="empty-state"><div class="empty-state-title">No wallet balances</div><div class="empty-state-sub">Nobody is carrying a wallet balance right now.</div></div>';
+    } else {
+      holders.sort((a,b)=>Math.abs(b.walletBalance)-Math.abs(a.walletBalance)).forEach(u=>{
+        const div = document.createElement('div');
+        div.className = 'list-card user-card';
+        div.innerHTML = `
+          <div class="user-avatar">${initials(u.name)}</div>
+          <div class="user-info">
+            <div class="user-name">${u.name}</div>
+            <div class="user-meta">${u.phone}</div>
+          </div>
+          <b style="font-size:14px; color:${u.walletBalance<0?'var(--danger)':'var(--green-dim)'};">₹${u.walletBalance.toLocaleString('en-IN')}</b>
+        `;
+        div.addEventListener('click', ()=>openWalletAdjustSheet(u.id));
+        list.appendChild(div);
+      });
+    }
+    // platform-wide transaction log — fetched lazily per wallet holder (no single global endpoint yet)
+    const logBox = $('#walletTxnLog');
+    if(logBox && holders.length){
+      logBox.innerHTML = '<div class="empty-state-sub" style="padding:14px 0;">Loading transaction log…</div>';
+      Promise.all(holders.slice(0,10).map(u=>Api.getUserWalletTransactions(u.id).then(txns=>(txns||[]).map(normWalletTxn).map(t=>Object.assign({},t,{customerName:u.name}))).catch(()=>[])))
+        .then(results=>{
+          const all = results.flat().sort((a,b)=>new Date(b.createdAt||0)-new Date(a.createdAt||0)).slice(0,25);
+          logBox.innerHTML = all.length ? all.map(t=>`
+            <div class="list-card" style="margin-bottom:8px;">
+              <div style="display:flex; justify-content:space-between;">
+                <b style="font-size:12px;">${t.customerName}</b>
+                <b style="font-size:12.5px; color:${t.amount<0?'var(--danger)':'var(--green-dim)'};">${t.amount<0?'-':'+'}₹${Math.abs(t.amount)}</b>
+              </div>
+              <div style="font-size:11px; color:var(--muted); margin-top:3px;">${t.reason||t.note||'Transaction'} &middot; ${t.date}</div>
+            </div>`).join('') : '<div class="empty-state-sub" style="padding:14px 0;">No transactions yet.</div>';
+        });
+    } else if(logBox){
+      logBox.innerHTML = '<div class="empty-state-sub" style="padding:14px 0;">No transactions yet.</div>';
+    }
+  }
+
+  function openWalletAdjustSheet(userId){
+    activeWalletUserId = userId;
+    const u = users.find(x=>x.id===userId);
+    if(!u) return;
+    $('#walletSheetTitle').textContent = u.name + "'s Wallet";
+    $('#walletSheetBody').innerHTML = `
+      <div style="text-align:center; margin-bottom:16px;">
+        <div style="font-size:11px; color:var(--muted); font-weight:700; text-transform:uppercase;">Current Balance</div>
+        <div style="font-size:26px; font-weight:800; margin-top:4px;">₹${(u.walletBalance||0).toLocaleString('en-IN')}</div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>Adjustment Type</label>
+          <select id="walletAdjustType"><option value="credit">Credit (add)</option><option value="debit">Debit (deduct)</option></select>
+        </div>
+        <div class="field"><label>Amount (₹)</label><input type="number" id="walletAdjustAmount" min="1" placeholder="0"></div>
+      </div>
+      <div class="field"><label>Reason (required)</label><input type="text" id="walletAdjustReason" placeholder="e.g. Goodwill refund, correction"></div>
+      <button class="btn-secondary" id="walletAdjustSaveBtn" style="width:100%; margin-top:6px;">Apply Adjustment</button>
+      <div id="walletAdjustTxns" style="margin-top:16px; font-size:12px; color:var(--muted);">Loading history…</div>
+    `;
+    openSheet('#walletSheetBackdrop');
+    Api.getUserWalletTransactions(u.id).then(txns=>{
+      const list = (txns||[]).map(normWalletTxn);
+      const box = $('#walletAdjustTxns');
+      if(!box) return;
+      box.innerHTML = list.length ? '<div style="font-weight:800; color:var(--ink); margin-bottom:6px;">History</div>' + list.map(t=>`
+        <div style="display:flex; justify-content:space-between; padding:5px 0; border-top:1px dashed var(--line);">
+          <span>${t.reason||t.note||'Transaction'} &middot; ${t.date}</span>
+          <b style="color:${t.amount<0?'var(--danger)':'var(--green-dim)'};">${t.amount<0?'-':'+'}₹${Math.abs(t.amount)}</b>
+        </div>`).join('') : 'No wallet transactions yet.';
+    }).catch(()=>{ const box=$('#walletAdjustTxns'); if(box) box.textContent='Could not load history.'; });
+    $('#walletAdjustSaveBtn').addEventListener('click', async ()=>{
+      const type = $('#walletAdjustType').value;
+      const amount = Number($('#walletAdjustAmount').value || 0);
+      const reason = $('#walletAdjustReason').value.trim();
+      if(!amount || amount<=0){ showToast('Enter a valid amount'); return; }
+      if(!reason){ showToast('A reason is required'); return; }
+      try{
+        const updated = await Api.adjustUserWallet(u.id, { type, amount, reason });
+        u.walletBalance = updated && updated.walletBalance != null ? updated.walletBalance : (u.walletBalance||0) + (type==='credit'?amount:-amount);
+        closeSheet('#walletSheetBackdrop');
+        renderAll();
+        showToast('Wallet updated');
+      } catch(err){ showToast(err.message || 'Could not adjust wallet'); }
+    });
+  }
+  $('#walletSheetCloseBtn').addEventListener('click', ()=>closeSheet('#walletSheetBackdrop'));
+  $('#walletSheetBackdrop').addEventListener('click', e=>{ if(e.target===e.currentTarget) closeSheet('#walletSheetBackdrop'); });
 
   /* ============================================================
      PAYMENT MANAGER — per-user plan billing, renewals, monthly totals
@@ -1603,6 +2054,10 @@
     renderStaff();
     renderPayments();
     renderReports();
+    renderSubscriptionDeliveries();
+    renderDashboardPendingBottles();
+    renderBottleTickets();
+    renderWallet();
     updateNavBadges();
   }
 
